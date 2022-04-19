@@ -12,12 +12,12 @@ import java.util.Properties;
 
 public class OlympicDBAccess {
     Connection conn = null;
+
+
     public OlympicDBAccess() {
         String jumpserverHost = "seitux2.adfa.unsw.edu.au";
         String jumpserverUsername = "z5414201";
-        // The hostname/IP address and port, you would use on the SSH server
-        // to connect to the database.
-        // If the database runs on the same machine as the SSH server, use "localhost".
+
         String databaseHost = "localhost";
         int databasePort = 3306;
         String databaseUsername = "z5414201";
@@ -41,27 +41,32 @@ public class OlympicDBAccess {
             // Connect to the forwarded port (the local end of the SSH tunnel)
             // If you don't use JDBC, but another database client,
             // just connect it to the localhost:forwardedPort
-            String url = "jdbc:mysql://localhost:" + forwardedPort;
+            String url = "jdbc:mysql://localhost:" + forwardedPort + "/z5414201";
             conn = DriverManager.getConnection(url, databaseUsername, databasePassword);
 
             System.out.println("Got it!");
 
         } catch (Exception e) {
             throw new Error("Problem", e);
-        } finally {
-            try {
-                if (conn != null) {
-                    conn.close();
-                }
-            } catch (SQLException ex) {
-                System.out.println(ex.getMessage());
-            }
         }
     }
 
     public void createTables() {
-        
+        String CREATE_OLYMPICS = "CREATE TABLE OLYMPICS(" +
+                "ID INT NOT NULL AUTO_INCREMENT," +
+                "YEAR INT," +
+                "SEASON VARCHAR(7)," +
+                "CITY VARCHAR(23)," +
+                "PRIMARY KEY (ID));";
+
+        try (Statement stmt = conn.createStatement()) {
+            stmt.executeUpdate(CREATE_OLYMPICS);
+        } catch (SQLException e) {
+            System.out.println("error: " + e.getMessage());
+        }
     }
+
+
 
     public void dropTables() {
        
