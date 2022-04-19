@@ -1,13 +1,17 @@
+import com.jcraft.jsch.JSch;
+import com.jcraft.jsch.Session;
+
 import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.sql.*;
 import java.util.Date;
+import java.util.Properties;
 
 
 public class OlympicDBAccess {
-//    Connection conn = null;
+    Connection conn = null;
     public OlympicDBAccess() {
         String jumpserverHost = "seitux2.adfa.unsw.edu.au";
         String jumpserverUsername = "z5414201";
@@ -20,32 +24,29 @@ public class OlympicDBAccess {
         String databasePassword = "mysqlpass";
 
         JSch jsch = new JSch();
-        // Public key authentication example
-        // (but you can use password authentication, if appropriate).
-        jsch.addIdentity("~/.ssh/id_rsa");
-
-        // Connect to SSH jump server (this does not show an authentication code)
-        Session session = jsch.getSession(jumpserverUsername, jumpserverHost);
-        session.connect();
-
-        // Forward randomly chosen local port through the SSH channel to database host/port
-        int forwardedPort = session.setPortForwardingL(0, databaseHost, databasePort);
-
-        // Connect to the forwarded port (the local end of the SSH tunnel)
-        // If you don't use JDBC, but another database client,
-        // just connect it to the localhost:forwardedPort
-        String url = "jdbc:mysql://localhost:" + forwardedPort;
-        Connection con =
-                DriverManager.getConnection(url, databaseUsername, databasePassword);
-
 
         try {
-            String url = "jdbc:mysql://seitux2.adfa.unsw.edu.au/z541401";
-            conn = DriverManager.getConnection(url);
+            // Connect to SSH jump server (this does not show an authentication code)
+            Session session = jsch.getSession(jumpserverUsername, jumpserverHost);
+            session.setPassword("");
+
+            Properties prop = new Properties();
+            prop.put("StrictHostKeyChecking", "no");
+            session.setConfig(prop);
+            session.connect();
+
+            // Forward randomly chosen local port through the SSH channel to database host/port
+            int forwardedPort = session.setPortForwardingL(0, databaseHost, databasePort);
+
+            // Connect to the forwarded port (the local end of the SSH tunnel)
+            // If you don't use JDBC, but another database client,
+            // just connect it to the localhost:forwardedPort
+            String url = "jdbc:mysql://localhost:" + forwardedPort;
+            conn = DriverManager.getConnection(url, databaseUsername, databasePassword);
 
             System.out.println("Got it!");
 
-        } catch (SQLException e) {
+        } catch (Exception e) {
             throw new Error("Problem", e);
         } finally {
             try {
