@@ -59,8 +59,36 @@ public class OlympicDBAccess {
                 "CITY VARCHAR(23)," +
                 "PRIMARY KEY (ID));";
 
+        String CREATE_EVENTS = "CREATE TABLE EVENTS(" +
+                "  ID INT NOT NULL AUTO_INCREMENT," +
+                "  SPORT VARCHAR(26)," +
+                "  EVENT VARCHAR(86)," +
+                "  PRIMARY KEY (ID)" +
+                ");";
+
+        String CREATE_ATHLETES = "CREATE TABLE ATHLETES(" +
+                "  ID INT NOT NULL AUTO_INCREMENT," +
+                "  NAME VARCHAR(94)," +
+                "  NOC CHAR(3)," +
+                "  GENDER CHAR(1)," +
+                "  PRIMARY KEY (ID)" +
+                ");";
+
+        String CREATE_MEDALS = "CREATE TABLE MEDALS" +
+                "(" +
+                "    ID        INT NOT NULL AUTO_INCREMENT," +
+                "    OLYMPICID INT, FOREIGN KEY (OLYMPICID) REFERENCES OLYMPICS(ID)," +
+                "    EVENTID INT, FOREIGN KEY (EVENTID) REFERENCES EVENTS(ID)," +
+                "    ATHLETEID INT, FOREIGN KEY (ATHLETEID) REFERENCES ATHLETES(ID)," +
+                "    MEDALCOLOUR VARCHAR(7)," +
+                "    PRIMARY KEY (ID)" +
+                ");";
+
         try (Statement stmt = conn.createStatement()) {
             stmt.executeUpdate(CREATE_OLYMPICS);
+            stmt.executeUpdate(CREATE_EVENTS);
+            stmt.executeUpdate(CREATE_ATHLETES);
+            stmt.executeUpdate(CREATE_MEDALS);
         } catch (SQLException e) {
             System.out.println("error: " + e.getMessage());
         }
