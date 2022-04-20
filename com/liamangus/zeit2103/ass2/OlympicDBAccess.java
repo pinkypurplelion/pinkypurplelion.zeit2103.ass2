@@ -1,3 +1,5 @@
+package com.liamangus.zeit2103.ass2;
+
 import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.Session;
 
@@ -97,7 +99,11 @@ public class OlympicDBAccess {
 
 
     public void dropTables() {
-       
+        try (Statement stmt = conn.createStatement()) {
+            stmt.executeUpdate("DROP TABLE MEDALS, OLYMPICS, EVENTS, ATHLETES;");
+        } catch (SQLException e) {
+            System.out.println("error: " + e.getMessage());
+        }
     }
 
     public void populateTables() {
