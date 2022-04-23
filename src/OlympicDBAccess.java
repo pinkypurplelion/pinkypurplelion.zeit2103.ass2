@@ -118,7 +118,7 @@ public class OlympicDBAccess {
         String sqlOlympics = "INSERT INTO OLYMPICS (YEAR, SEASON, CITY) VALUES (?, ?, ?)";
         String sqlEvents = "INSERT INTO EVENTS (SPORT, EVENT) VALUES (?, ?)";
         String sqlAthletes = "INSERT INTO ATHLETES (NAME, NOC, GENDER) VALUES (?, ?, ?)";
-        String sqlMedals = "INSERT INTO MEDALS (OLYMPICID, EVENTID, ATHLETEID, MEDALCOLOUR) VALUES (?, ?, ?, ?)";
+        String sqlMedals = "INSERT INTO MEDALS (OLYMPICID, EVENTID, ATHLETEID, MEDALCOLOUR) VALUES ((SELECT ID FROM OLYMPICS WHERE YEAR=? AND SEASON=? AND CITY=?), (SELECT ID FROM EVENTS WHERE SPORT=? AND EVENT=?), (SELECT ID FROM ATHLETES WHERE NAME=? AND NOC=? AND GENDER=?), ?)";
 
         try (PreparedStatement ps = conn.prepareStatement(sqlOlympics)) {
             PreparedStatement[] stmts = new PreparedStatement[]{ps};
@@ -151,24 +151,16 @@ public class OlympicDBAccess {
         System.out.println("Time to populate: " + (System.currentTimeMillis() - time) + "ms");
 
         try (PreparedStatement ps = conn.prepareStatement(sqlMedals)) {
-            String sqlGetOID = "SELECT ID FROM OLYMPICS WHERE YEAR=? AND SEASON=? AND CITY=?";
-            String sqlGetEID = "SELECT ID FROM EVENTS WHERE SPORT=? AND EVENT=?";
-            String sqlGetAID = "SELECT ID FROM ATHLETES WHERE NAME=? AND NOC=? AND GENDER=?";
-
-            PreparedStatement psOID = conn.prepareStatement(sqlGetOID);
-            PreparedStatement psEID = conn.prepareStatement(sqlGetEID);
-            PreparedStatement psAID = conn.prepareStatement(sqlGetAID);
-
-            PreparedStatement[] stmts = new PreparedStatement[]{ps, psOID, psEID, psAID};
+            PreparedStatement[] stmts = new PreparedStatement[]{ps};
             readData("resources/medals.csv", stmts, this::populateMedals);
+            System.out.println("statements created. Executing now");
             ps.executeBatch();
             conn.commit();
-
-            psOID.close();
-            psEID.close();
-            psAID.close();
         } catch (SQLException e) {
-            throw new RuntimeException(e);
+            System.out.println(e.getMessage());
+            System.out.println(e.getSQLState());
+            System.out.println("Time to populate: " + (System.currentTimeMillis() - time) + "ms");
+//            throw new RuntimeException(e);
         }
 
         //this should be the last line in this method
@@ -191,37 +183,19 @@ public class OlympicDBAccess {
     }
 
     public void populateMedals(String[] data, PreparedStatement[] ps) {
-//        System.out.println(Arrays.toString(data));
-        try (Statement stmt = conn.createStatement()) {
-            ps[1].setString(1, data[3].replace("\"", ""));
-            ps[1].setString(2, data[4].replace("\"", ""));
-            ps[1].setString(3, data[5].replace("\"", ""));
+        try {
+            ps[0].setString(1, data[3].replace("\"", ""));
+            ps[0].setString(2, data[4].replace("\"", ""));
+            ps[0].setString(3, data[5].replace("\"", ""));
 
-            ps[2].setString(1, data[6].replace("\"", ""));
-            ps[2].setString(2, data[7].replace("\"", ""));
+            ps[0].setString(4, data[6].replace("\"", ""));
+            ps[0].setString(5, data[7].replace("\"", ""));
 
-            ps[3].setString(1, data[0].replace("\"", ""));
-            ps[3].setString(2, data[2].replace("\"", ""));
-            ps[3].setString(3, data[1].replace("\"", ""));
+            ps[0].setString(6, data[0].replace("\"", ""));
+            ps[0].setString(7, data[2].replace("\"", ""));
+            ps[0].setString(8, data[1].replace("\"", ""));
 
-            ResultSet rs = ps[1].executeQuery();
-            rs.absolute(1);
-            String oid = rs.getString(1);
-
-            rs = ps[2].executeQuery();
-            rs.absolute(1);
-            String eid = rs.getString(1);
-
-            rs = ps[3].executeQuery();
-            rs.absolute(1);
-            String aid = rs.getString(1);
-
-            rs.close();
-
-            ps[0].setString(1, oid);
-            ps[0].setString(2, eid);
-            ps[0].setString(3, aid);
-            ps[0].setString(4, data[8].replace("\"", ""));
+            ps[0].setString(9, data[8].replace("\"", ""));
             ps[0].addBatch();
         } catch (SQLException e) {
             System.out.println("error: " + e.getMessage());
