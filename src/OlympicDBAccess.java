@@ -1,6 +1,7 @@
 package src;
 
 import com.jcraft.jsch.JSch;
+import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Session;
 
 import java.io.*;
@@ -9,13 +10,17 @@ import java.sql.*;
 import java.util.Properties;
 import java.util.Scanner;
 import java.util.function.BiConsumer;
+import java.util.logging.Logger;
 
 
 public class OlympicDBAccess {
     Connection conn;
+
+    private static Logger logger =
+            Logger.getLogger(OlympicDBAccess.class.getName());
     public OlympicDBAccess() {
-        String jumpserverHost = "seitux2.adfa.unsw.edu.au";
-        String jumpserverUsername = "z5414201";
+        String host = "seitux2.adfa.unsw.edu.au";
+        String username = "z5414201";
 
         String databaseHost = "localhost";
         int databasePort = 3306;
@@ -25,12 +30,12 @@ public class OlympicDBAccess {
         JSch jsch = new JSch();
 
         try {
-            // Connect to SSH jump server (this does not show an authentication code)
-            Session session = jsch.getSession(jumpserverUsername, jumpserverHost);
+            // Connect to SSH to server containing mySQL server
+            Session session = jsch.getSession(host, username);
             session.setPassword("2Wp5^cfgrE25agtE");
 
             Properties prop = new Properties();
-            prop.put("StrictHostKeyChecking", "no");
+            prop.put("StrictHostKeyChecking", "no"); // doesn't check SSH cert.
             session.setConfig(prop);
             session.connect();
 
@@ -38,15 +43,17 @@ public class OlympicDBAccess {
             int forwardedPort = session.setPortForwardingL(0, databaseHost, databasePort);
 
             // Connect to the forwarded port (the local end of the SSH tunnel)
-            // If you don't use JDBC, but another database client,
-            // just connect it to the localhost:forwardedPort
-            String url = "jdbc:mysql://localhost:" + forwardedPort + "/z5414201?useServerPrepStmts=false&rewriteBatchedStatements=true";
+            String url = "jdbc:mysql://localhost:" + forwardedPort
+                    + "/z5414201?useServerPrepStmts=false&rewriteBatchedStatements=true";
             conn = DriverManager.getConnection(url, databaseUsername, databasePassword);
             conn.setAutoCommit(false);
-            System.out.println("Got it!");
-
-        } catch (Exception e) {
-            throw new Error("Problem", e);
+            logger.info("DB Connection Established");
+        } catch (JSchException e) {
+            logger.severe("Error connecting to the server: " + e.getMessage());
+            throw new RuntimeException(e);
+        } catch (SQLException e) {
+            logger.severe("Error connecting to the sql database: " + e.getMessage());
+            throw new RuntimeException(e);
         }
     }
 
@@ -89,7 +96,7 @@ public class OlympicDBAccess {
             stmt.executeUpdate(CREATE_ATHLETES);
             stmt.executeUpdate(CREATE_MEDALS);
         } catch (SQLException e) {
-            System.out.println("error: " + e.getMessage());
+            logger.warning("Unable to create all tables. Error: " + e.getMessage());
         }
     }
 
@@ -99,7 +106,7 @@ public class OlympicDBAccess {
         try (Statement stmt = conn.createStatement()) {
             stmt.executeUpdate("DROP TABLE MEDALS, OLYMPICS, EVENTS, ATHLETES;");
         } catch (SQLException e) {
-            System.out.println("error: " + e.getMessage());
+            logger.warning("Unable to drop all tables. Error: " + e.getMessage());
         }
     }
 
@@ -118,27 +125,24 @@ public class OlympicDBAccess {
             ps.executeBatch();
             conn.commit();
         } catch (SQLException e) {
-            throw new RuntimeException(e);
+            logger.severe("Unable to insert values into OLYMPICS table. Error: " + e.getMessage());
         }
-        System.out.println("Time to populate: " + (System.currentTimeMillis() - time) + "ms");
 
         try (PreparedStatement ps = conn.prepareStatement(sqlEvents)) {
             readData("resources/events.csv", ps, this::populateTable);
             ps.executeBatch();
             conn.commit();
         } catch (SQLException e) {
-            throw new RuntimeException(e);
+            logger.severe("Unable to insert values into EVENTS table. Error: " + e.getMessage());
         }
-        System.out.println("Time to populate: " + (System.currentTimeMillis() - time) + "ms");
 
         try (PreparedStatement ps = conn.prepareStatement(sqlAthletes)) {
             readData("resources/athletes.csv", ps, this::populateTable);
             ps.executeBatch();
             conn.commit();
         } catch (SQLException e) {
-            throw new RuntimeException(e);
+            logger.severe("Unable to insert values into ATHLETES table. Error: " + e.getMessage());
         }
-        System.out.println("Time to populate: " + (System.currentTimeMillis() - time) + "ms");
 
         try (PreparedStatement ps = conn.prepareStatement(sqlMedals)) {
             readData("resources/medals.csv", ps, this::populateMedals);
@@ -146,13 +150,11 @@ public class OlympicDBAccess {
             ps.executeBatch();
             conn.commit();
         } catch (SQLException e) {
-            System.out.println(e.getMessage());
-            System.out.println(e.getSQLState());
-            System.out.println("Time to populate: " + (System.currentTimeMillis() - time) + "ms");
-//            throw new RuntimeException(e);
+            logger.severe("Unable to insert values into MEDALS table. Error: " + e.getMessage());
         }
 
         //this should be the last line in this method
+        logger.info("Time to populate: " + (System.currentTimeMillis() - time) + "ms");
         System.out.println("Time to populate: " + (System.currentTimeMillis() - time) + "ms");
     }
 
