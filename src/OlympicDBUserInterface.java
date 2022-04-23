@@ -1,4 +1,4 @@
-package com.liamangus.zeit2103.ass2;
+package src;
 
 import java.io.BufferedReader;
 import java.io.IOException;

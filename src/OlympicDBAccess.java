@@ -1,4 +1,4 @@
-package com.liamangus.zeit2103.ass2;
+package src;
 
 import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.Session;
