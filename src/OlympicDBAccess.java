@@ -47,7 +47,7 @@ public class OlympicDBAccess {
             // Connect to the forwarded port (the local end of the SSH tunnel)
             // If you don't use JDBC, but another database client,
             // just connect it to the localhost:forwardedPort
-            String url = "jdbc:mysql://localhost:" + forwardedPort + "/z5414201?useServerPrepStmts=true";
+            String url = "jdbc:mysql://localhost:" + forwardedPort + "/z5414201?useServerPrepStmts=true&emulateUnsupportedPstmts=false";
             conn = DriverManager.getConnection(url, databaseUsername, databasePassword);
 
             System.out.println("Got it!");
@@ -123,6 +123,7 @@ public class OlympicDBAccess {
         try (PreparedStatement ps = conn.prepareStatement(sqlOlympics)) {
             PreparedStatement[] stmts = new PreparedStatement[]{ps};
             readData("resources/olympics.csv", stmts, this::populateTable);
+            ps.executeBatch();
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
@@ -131,6 +132,7 @@ public class OlympicDBAccess {
         try (PreparedStatement ps = conn.prepareStatement(sqlEvents)) {
             PreparedStatement[] stmts = new PreparedStatement[]{ps};
             readData("resources/events.csv", stmts, this::populateTable);
+            ps.executeBatch();
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
@@ -139,6 +141,7 @@ public class OlympicDBAccess {
         try (PreparedStatement ps = conn.prepareStatement(sqlAthletes)) {
             PreparedStatement[] stmts = new PreparedStatement[]{ps};
             readData("resources/athletes.csv", stmts, this::populateTable);
+            ps.executeBatch();
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
@@ -160,10 +163,11 @@ public class OlympicDBAccess {
 
     public void populateTable(String[] data, PreparedStatement[] ps) {
         try {
+            ps[0].clearParameters();
             for (int i = 0; i < data.length; i++) {
                 ps[0].setString(i+1, data[i].replace("\"",""));
             }
-            ps[0].executeUpdate();
+            ps[0].addBatch();
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
