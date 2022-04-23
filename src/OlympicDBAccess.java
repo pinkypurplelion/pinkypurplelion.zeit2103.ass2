@@ -167,7 +167,7 @@ public class OlympicDBAccess {
             }
             ps.addBatch();
         } catch (SQLException e) {
-            throw new RuntimeException(e);
+            System.out.println("error: " + e.getMessage());
         }
     }
 
@@ -192,11 +192,23 @@ public class OlympicDBAccess {
     }
 
     public void readData(String path, PreparedStatement ps, BiConsumer<String[], PreparedStatement> populateTable) {
+        int counter = 0;
         try (FileInputStream inputStream = new FileInputStream(path); Scanner sc = new Scanner(inputStream, StandardCharsets.UTF_8)) {
             while (sc.hasNextLine()) {
                 String line = sc.nextLine();
                 String[] data = line.split(",");
                 populateTable.accept(data, ps);
+//                counter++;
+//                try {
+//                    if (counter % 5000 == 0) {
+//                        System.out.println("Clearing batch, counter="+counter);
+//                        ps.executeBatch();
+//                        conn.commit();
+//                        ps.clearBatch();
+//                    }
+//                } catch (SQLException e) {
+//                    System.out.println(counter + ": error: " + e.getMessage());
+//                }
             }
             // note that Scanner suppresses exceptions
             if (sc.ioException() != null) {
