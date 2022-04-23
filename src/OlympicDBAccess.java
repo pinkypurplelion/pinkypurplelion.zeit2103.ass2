@@ -3,6 +3,7 @@ package src;
 import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.Session;
 
+import javax.xml.transform.Result;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.sql.*;
@@ -10,6 +11,7 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.Properties;
 import java.util.Scanner;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 
@@ -111,10 +113,28 @@ public class OlympicDBAccess {
         //this should be the first line in this method.
         long time = System.currentTimeMillis();
 
+        String sqlOlympics = "INSERT INTO OLYMPICS (YEAR, SEASON, CITY) VALUES (?, ?, ?);";
+        String sqlEvents = "INSERT INTO EVENTS (SPORT, EVENT) VALUES (?, ?);";
+
+
+        try (PreparedStatement ps = conn.prepareStatement(sqlOlympics)) {
+            readData("resources/olympics.csv", ps, this::populateTable);
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+
+//        try (PreparedStatement ps = conn.prepareStatement(sqlEvents)) {
+//            readData("resources/events.csv", ps, this::populateEvents);
+//        } catch (SQLException e) {
+//            throw new RuntimeException(e);
+//        }
+
         //populate the tables here
-        readData("resources/olympics.csv", this::populateOlympics);
-        readData("resources/events.csv", this::populateEvents);
-        readData("resources/athletes.csv", this::populateAthletes);
+//        readData("resources/olympics.csv", this::populateOlympics);
+//        readData("resources/events.csv", this::populateEvents);
+//        readData("resources/athletes.csv", this::populateAthletes);
+//        readData("resources/medals.csv", this::populateMedals);
+
 
         //this should be the last line in this method
         System.out.println("Time to populate: " + (System.currentTimeMillis() - time) + "ms");
@@ -124,21 +144,14 @@ public class OlympicDBAccess {
         
     }
 
-    public void populateOlympics(String[] data) {
-        String sql = "INSERT INTO OLYMPICS (YEAR, SEASON, CITY) VALUES (" + data[0] + "," + data[1] + "," + data[2] + ");";
-        try (Statement stmt = conn.createStatement()) {
-            stmt.executeUpdate(sql);
+    public void populateTable(String[] data, PreparedStatement ps) {
+        try {
+            for (int i = 0; i < data.length; i++) {
+                ps.setString(i+1, data[i].replace("\"",""));
+            }
+            ps.executeUpdate();
         } catch (SQLException e) {
-            System.out.println("error: " + e.getMessage());
-        }
-    }
-
-    public void populateEvents(String[] data) {
-        String sql = "INSERT INTO EVENTS (SPORT, EVENT) VALUES (" + data[0] + "," + data[1] + ");";
-        try (Statement stmt = conn.createStatement()) {
-            stmt.executeUpdate(sql);
-        } catch (SQLException e) {
-            System.out.println("error: " + e.getMessage());
+            throw new RuntimeException(e);
         }
     }
 
@@ -152,20 +165,40 @@ public class OlympicDBAccess {
     }
 
     public void populateMedals(String[] data) {
-        String sql = "INSERT INTO MEDALS (OLYMPICID, EVENTID, ATHLETEID, MEDALCOLOUR) VALUES ();";
+        System.out.println(Arrays.toString(data));
+        String sqlGetOID = "SELECT ID FROM OLYMPICS WHERE YEAR=" + data[3] +" AND SEASON=" + data[4] +" AND CITY=" + data[5] + ";";
+        String sqlGetEID = "SELECT ID FROM EVENTS WHERE SPORT=" + data[6] + " AND EVENT=" + data[7] + ";";
+        String sqlGetAID = "SELECT ID FROM ATHLETES WHERE NAME=" + data[3] +" AND NOC=" + data[4] +" AND GENDER=" + data[5] + ";";
+        System.out.println(sqlGetOID);
+        System.out.println(sqlGetEID);
+        System.out.println(sqlGetAID);
         try (Statement stmt = conn.createStatement()) {
+            ResultSet rs = stmt.executeQuery(sqlGetOID);
+            System.out.println(rs);
+            rs.absolute(1);
+            String oid = rs.getString(1);
+            rs = stmt.executeQuery(sqlGetEID);
+            System.out.println(rs);
+            rs.absolute(1);
+            String eid = rs.getString(1);
+            rs = stmt.executeQuery(sqlGetAID);
+            System.out.println(rs);
+            rs.absolute(1);
+            String aid = rs.getString(1);
+            rs.close();
+            String sql = "INSERT INTO MEDALS (OLYMPICID, EVENTID, ATHLETEID, MEDALCOLOUR) VALUES (" + oid + "," + eid + "," + aid + "," + data[8] + ");";
             stmt.executeUpdate(sql);
         } catch (SQLException e) {
             System.out.println("error: " + e.getMessage());
         }
     }
 
-    public void readData(String path, Consumer<String[]> populateTable) {
+    public void readData(String path, PreparedStatement ps, BiConsumer<String[], PreparedStatement> populateTable) {
         try (FileInputStream inputStream = new FileInputStream(path); Scanner sc = new Scanner(inputStream, StandardCharsets.UTF_8)) {
             while (sc.hasNextLine()) {
                 String line = sc.nextLine();
                 String[] data = line.split(",");
-                populateTable.accept(data);
+                populateTable.accept(data, ps);
             }
             // note that Scanner suppresses exceptions
             if (sc.ioException() != null) {
