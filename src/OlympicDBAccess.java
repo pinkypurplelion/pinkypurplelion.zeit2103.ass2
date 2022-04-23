@@ -3,13 +3,14 @@ package src;
 import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.Session;
 
-import java.io.BufferedReader;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.IOException;
+import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.sql.*;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.Properties;
+import java.util.Scanner;
+import java.util.function.Consumer;
 
 
 public class OlympicDBAccess {
@@ -30,7 +31,7 @@ public class OlympicDBAccess {
         try {
             // Connect to SSH jump server (this does not show an authentication code)
             Session session = jsch.getSession(jumpserverUsername, jumpserverHost);
-            session.setPassword("");
+            session.setPassword("2Wp5^cfgrE25agtE");
 
             Properties prop = new Properties();
             prop.put("StrictHostKeyChecking", "no");
@@ -111,7 +112,9 @@ public class OlympicDBAccess {
         long time = System.currentTimeMillis();
 
         //populate the tables here
-        
+        readData("resources/olympics.csv", this::populateOlympics);
+        readData("resources/events.csv", this::populateEvents);
+        readData("resources/athletes.csv", this::populateAthletes);
 
         //this should be the last line in this method
         System.out.println("Time to populate: " + (System.currentTimeMillis() - time) + "ms");
@@ -121,5 +124,55 @@ public class OlympicDBAccess {
         
     }
 
- 
+    public void populateOlympics(String[] data) {
+        String sql = "INSERT INTO OLYMPICS (YEAR, SEASON, CITY) VALUES (" + data[0] + "," + data[1] + "," + data[2] + ");";
+        try (Statement stmt = conn.createStatement()) {
+            stmt.executeUpdate(sql);
+        } catch (SQLException e) {
+            System.out.println("error: " + e.getMessage());
+        }
+    }
+
+    public void populateEvents(String[] data) {
+        String sql = "INSERT INTO EVENTS (SPORT, EVENT) VALUES (" + data[0] + "," + data[1] + ");";
+        try (Statement stmt = conn.createStatement()) {
+            stmt.executeUpdate(sql);
+        } catch (SQLException e) {
+            System.out.println("error: " + e.getMessage());
+        }
+    }
+
+    public void populateAthletes(String[] data) {
+        String sql = "INSERT INTO ATHLETES (NAME, NOC, GENDER) VALUES (" + data[0] + "," + data[1] + "," + data[2] + ");";
+        try (Statement stmt = conn.createStatement()) {
+            stmt.executeUpdate(sql);
+        } catch (SQLException e) {
+            System.out.println("error: " + e.getMessage());
+        }
+    }
+
+    public void populateMedals(String[] data) {
+        String sql = "INSERT INTO MEDALS (OLYMPICID, EVENTID, ATHLETEID, MEDALCOLOUR) VALUES ();";
+        try (Statement stmt = conn.createStatement()) {
+            stmt.executeUpdate(sql);
+        } catch (SQLException e) {
+            System.out.println("error: " + e.getMessage());
+        }
+    }
+
+    public void readData(String path, Consumer<String[]> populateTable) {
+        try (FileInputStream inputStream = new FileInputStream(path); Scanner sc = new Scanner(inputStream, StandardCharsets.UTF_8)) {
+            while (sc.hasNextLine()) {
+                String line = sc.nextLine();
+                String[] data = line.split(",");
+                populateTable.accept(data);
+            }
+            // note that Scanner suppresses exceptions
+            if (sc.ioException() != null) {
+                throw sc.ioException();
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
 }

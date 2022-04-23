@@ -1,22 +1,30 @@
 package test;
 
+import org.junit.jupiter.api.Test;
+import src.OlympicDBAccess;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class OlympicDBAccessTest {
 
-    @org.junit.jupiter.api.Test
+    @Test
     void createTables() {
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void dropTables() {
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void populateTables() {
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void runQueries() {
     }
+
+//    @Test
+//    void readData() {
+//        OlympicDBAccess.readData("resources/olympics.csv", OlympicDBAccess::populateOlympics);
+//    }
 }
