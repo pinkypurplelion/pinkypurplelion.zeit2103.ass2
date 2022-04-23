@@ -3,23 +3,16 @@ package src;
 import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.Session;
 
-import javax.sql.DataSource;
-import javax.xml.transform.Result;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.sql.*;
-import java.util.Arrays;
-import java.util.Date;
 import java.util.Properties;
 import java.util.Scanner;
 import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 
 
 public class OlympicDBAccess {
-    Connection conn = null;
-
-
+    Connection conn;
     public OlympicDBAccess() {
         String jumpserverHost = "seitux2.adfa.unsw.edu.au";
         String jumpserverUsername = "z5414201";
@@ -121,8 +114,7 @@ public class OlympicDBAccess {
         String sqlMedals = "INSERT INTO MEDALS (OLYMPICID, EVENTID, ATHLETEID, MEDALCOLOUR) VALUES ((SELECT ID FROM OLYMPICS WHERE YEAR=? AND SEASON=? AND CITY=?), (SELECT ID FROM EVENTS WHERE SPORT=? AND EVENT=?), (SELECT ID FROM ATHLETES WHERE NAME=? AND NOC=? AND GENDER=?), ?)";
 
         try (PreparedStatement ps = conn.prepareStatement(sqlOlympics)) {
-            PreparedStatement[] stmts = new PreparedStatement[]{ps};
-            readData("resources/olympics.csv", stmts, this::populateTable);
+            readData("resources/olympics.csv", ps, this::populateTable);
             ps.executeBatch();
             conn.commit();
         } catch (SQLException e) {
@@ -131,8 +123,7 @@ public class OlympicDBAccess {
         System.out.println("Time to populate: " + (System.currentTimeMillis() - time) + "ms");
 
         try (PreparedStatement ps = conn.prepareStatement(sqlEvents)) {
-            PreparedStatement[] stmts = new PreparedStatement[]{ps};
-            readData("resources/events.csv", stmts, this::populateTable);
+            readData("resources/events.csv", ps, this::populateTable);
             ps.executeBatch();
             conn.commit();
         } catch (SQLException e) {
@@ -141,8 +132,7 @@ public class OlympicDBAccess {
         System.out.println("Time to populate: " + (System.currentTimeMillis() - time) + "ms");
 
         try (PreparedStatement ps = conn.prepareStatement(sqlAthletes)) {
-            PreparedStatement[] stmts = new PreparedStatement[]{ps};
-            readData("resources/athletes.csv", stmts, this::populateTable);
+            readData("resources/athletes.csv", ps, this::populateTable);
             ps.executeBatch();
             conn.commit();
         } catch (SQLException e) {
@@ -151,8 +141,7 @@ public class OlympicDBAccess {
         System.out.println("Time to populate: " + (System.currentTimeMillis() - time) + "ms");
 
         try (PreparedStatement ps = conn.prepareStatement(sqlMedals)) {
-            PreparedStatement[] stmts = new PreparedStatement[]{ps};
-            readData("resources/medals.csv", stmts, this::populateMedals);
+            readData("resources/medals.csv", ps, this::populateMedals);
             System.out.println("statements created. Executing now");
             ps.executeBatch();
             conn.commit();
@@ -171,38 +160,38 @@ public class OlympicDBAccess {
         
     }
 
-    public void populateTable(String[] data, PreparedStatement[] ps) {
+    public void populateTable(String[] data, PreparedStatement ps) {
         try {
             for (int i = 0; i < data.length; i++) {
-                ps[0].setString(i+1, data[i].replace("\"",""));
+                ps.setString(i+1, data[i].replace("\"",""));
             }
-            ps[0].addBatch();
+            ps.addBatch();
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
     }
 
-    public void populateMedals(String[] data, PreparedStatement[] ps) {
+    public void populateMedals(String[] data, PreparedStatement ps) {
         try {
-            ps[0].setString(1, data[3].replace("\"", ""));
-            ps[0].setString(2, data[4].replace("\"", ""));
-            ps[0].setString(3, data[5].replace("\"", ""));
+            ps.setString(1, data[3].replace("\"", ""));
+            ps.setString(2, data[4].replace("\"", ""));
+            ps.setString(3, data[5].replace("\"", ""));
 
-            ps[0].setString(4, data[6].replace("\"", ""));
-            ps[0].setString(5, data[7].replace("\"", ""));
+            ps.setString(4, data[6].replace("\"", ""));
+            ps.setString(5, data[7].replace("\"", ""));
 
-            ps[0].setString(6, data[0].replace("\"", ""));
-            ps[0].setString(7, data[2].replace("\"", ""));
-            ps[0].setString(8, data[1].replace("\"", ""));
+            ps.setString(6, data[0].replace("\"", ""));
+            ps.setString(7, data[2].replace("\"", ""));
+            ps.setString(8, data[1].replace("\"", ""));
 
-            ps[0].setString(9, data[8].replace("\"", ""));
-            ps[0].addBatch();
+            ps.setString(9, data[8].replace("\"", ""));
+            ps.addBatch();
         } catch (SQLException e) {
             System.out.println("error: " + e.getMessage());
         }
     }
 
-    public void readData(String path, PreparedStatement[] ps, BiConsumer<String[], PreparedStatement[]> populateTable) {
+    public void readData(String path, PreparedStatement ps, BiConsumer<String[], PreparedStatement> populateTable) {
         try (FileInputStream inputStream = new FileInputStream(path); Scanner sc = new Scanner(inputStream, StandardCharsets.UTF_8)) {
             while (sc.hasNextLine()) {
                 String line = sc.nextLine();
