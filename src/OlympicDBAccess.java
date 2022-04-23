@@ -47,9 +47,9 @@ public class OlympicDBAccess {
             // Connect to the forwarded port (the local end of the SSH tunnel)
             // If you don't use JDBC, but another database client,
             // just connect it to the localhost:forwardedPort
-            String url = "jdbc:mysql://localhost:" + forwardedPort + "/z5414201?useServerPrepStmts=true&emulateUnsupportedPstmts=false";
+            String url = "jdbc:mysql://localhost:" + forwardedPort + "/z5414201?useServerPrepStmts=false&rewriteBatchedStatements=true";
             conn = DriverManager.getConnection(url, databaseUsername, databasePassword);
-
+            conn.setAutoCommit(false);
             System.out.println("Got it!");
 
         } catch (Exception e) {
@@ -115,15 +115,16 @@ public class OlympicDBAccess {
         long time = System.currentTimeMillis();
 
         //populate the tables here
-        String sqlOlympics = "INSERT INTO OLYMPICS (YEAR, SEASON, CITY) VALUES (?, ?, ?);";
-        String sqlEvents = "INSERT INTO EVENTS (SPORT, EVENT) VALUES (?, ?);";
-        String sqlAthletes = "INSERT INTO ATHLETES (NAME, NOC, GENDER) VALUES (?, ?, ?);";
-        String sqlMedals = "INSERT INTO MEDALS (OLYMPICID, EVENTID, ATHLETEID, MEDALCOLOUR) VALUES (?, ?, ?, ?);";
+        String sqlOlympics = "INSERT INTO OLYMPICS (YEAR, SEASON, CITY) VALUES (?, ?, ?)";
+        String sqlEvents = "INSERT INTO EVENTS (SPORT, EVENT) VALUES (?, ?)";
+        String sqlAthletes = "INSERT INTO ATHLETES (NAME, NOC, GENDER) VALUES (?, ?, ?)";
+        String sqlMedals = "INSERT INTO MEDALS (OLYMPICID, EVENTID, ATHLETEID, MEDALCOLOUR) VALUES (?, ?, ?, ?)";
 
         try (PreparedStatement ps = conn.prepareStatement(sqlOlympics)) {
             PreparedStatement[] stmts = new PreparedStatement[]{ps};
             readData("resources/olympics.csv", stmts, this::populateTable);
             ps.executeBatch();
+            conn.commit();
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
@@ -133,6 +134,7 @@ public class OlympicDBAccess {
             PreparedStatement[] stmts = new PreparedStatement[]{ps};
             readData("resources/events.csv", stmts, this::populateTable);
             ps.executeBatch();
+            conn.commit();
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
@@ -142,13 +144,27 @@ public class OlympicDBAccess {
             PreparedStatement[] stmts = new PreparedStatement[]{ps};
             readData("resources/athletes.csv", stmts, this::populateTable);
             ps.executeBatch();
+            conn.commit();
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
         System.out.println("Time to populate: " + (System.currentTimeMillis() - time) + "ms");
 
 //        try (PreparedStatement ps = conn.prepareStatement(sqlMedals)) {
-//            readData("resources/medals.csv", ps, this::populateMedals);
+//            String sqlGetOID = "SELECT ID FROM OLYMPICS WHERE YEAR=" + data[3] +" AND SEASON=" + data[4] +" AND CITY=" + data[5] + ";";
+//            String sqlGetEID = "SELECT ID FROM EVENTS WHERE SPORT=" + data[6] + " AND EVENT=" + data[7] + ";";
+//            String sqlGetAID = "SELECT ID FROM ATHLETES WHERE NAME=" + data[3] +" AND NOC=" + data[4] +" AND GENDER=" + data[5] + ";";
+//
+//            PreparedStatement psOID = conn.prepareStatement(sqlGetOID);
+//            PreparedStatement psEID = conn.prepareStatement(sqlGetEID);
+//            PreparedStatement psAID = conn.prepareStatement(sqlGetAID);
+//
+//            PreparedStatement[] stmts = new PreparedStatement[]{ps, psOID, psEID, psAID};
+//            readData("resources/medals.csv", stmts, this::populateMedals);
+//
+//            psOID.close();
+//            psEID.close();
+//            psAID.close();
 //        } catch (SQLException e) {
 //            throw new RuntimeException(e);
 //        }
@@ -163,7 +179,6 @@ public class OlympicDBAccess {
 
     public void populateTable(String[] data, PreparedStatement[] ps) {
         try {
-            ps[0].clearParameters();
             for (int i = 0; i < data.length; i++) {
                 ps[0].setString(i+1, data[i].replace("\"",""));
             }
