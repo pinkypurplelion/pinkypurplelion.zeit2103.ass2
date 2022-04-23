@@ -157,7 +157,57 @@ public class OlympicDBAccess {
     }
 
     public void runQueries() {
-        
+        String sql = "SELECT DISTINCT COUNT(*) FROM EVENTS WHERE SPORT='Athletics'";
+        try (Statement stmt = conn.createStatement()) {
+            ResultSet res = stmt.executeQuery(sql);
+            res.absolute(1);
+            System.out.println("The number of distinct events that have the sport 'Athletics'");
+            System.out.println(res.getString(1));
+        } catch (SQLException e) {
+            System.out.println("error: " + e.getMessage());
+        }
+
+        sql = "SELECT YEAR, SEASON, CITY FROM OLYMPICS ORDER BY YEAR";
+        try (Statement stmt = conn.createStatement()) {
+            ResultSet res = stmt.executeQuery(sql);
+            System.out.println("The year, season, and city for each Olympics, ordered with the earliest entries first.");
+            while (res.next()) {
+                System.out.println(res.getString(1) + " - " + res.getString(2) + " - " + res.getString(3));
+            }
+        } catch (SQLException e) {
+            System.out.println("error: " + e.getMessage());
+        }
+
+        try (Statement stmt = conn.createStatement()) {
+            System.out.println("The total number of each medal colour awarded to athletes from Australia (NOC: AUS) over all Olympics in the database.");
+            sql = "SELECT COUNT(MEDALS.ID) FROM MEDALS INNER JOIN ATHLETES ON MEDALS.ATHLETEID=ATHLETES.ID WHERE ATHLETES.NOC='AUS' AND MEDALS.MEDALCOLOUR='Gold'";
+            ResultSet res = stmt.executeQuery(sql);
+            res.absolute(1);
+            System.out.println("Gold: " + res.getString(1));
+
+            sql = "SELECT COUNT(MEDALS.ID) FROM MEDALS INNER JOIN ATHLETES ON MEDALS.ATHLETEID=ATHLETES.ID WHERE ATHLETES.NOC='AUS' AND MEDALS.MEDALCOLOUR='Silver'";
+            res = stmt.executeQuery(sql);
+            res.absolute(1);
+            System.out.println("Silver: " + res.getString(1));
+
+            sql = "SELECT COUNT(MEDALS.ID) FROM MEDALS INNER JOIN ATHLETES ON MEDALS.ATHLETEID=ATHLETES.ID WHERE ATHLETES.NOC='AUS' AND MEDALS.MEDALCOLOUR='Bronze'";
+            res = stmt.executeQuery(sql);
+            res.absolute(1);
+            System.out.println("Bronze: " + res.getString(1));
+        } catch (SQLException e) {
+            System.out.println("error: " + e.getMessage());
+        }
+
+        try (Statement stmt = conn.createStatement()) {
+            sql = "SELECT ATHLETES.NAME, OLYMPICS.YEAR, OLYMPICS.SEASON FROM ATHLETES INNER JOIN MEDALS ON ATHLETES.ID = MEDALS.ATHLETEID INNER JOIN OLYMPICS ON MEDALS.OLYMPICID = OLYMPICS.ID WHERE ATHLETES.NOC='IRL' AND MEDALS.MEDALCOLOUR='Silver';";
+            ResultSet res = stmt.executeQuery(sql);
+            System.out.println("The name of all athletes from Ireland (NOC: IRL) who won silver medals, and the year / season in which they won them..");
+            while (res.next()) {
+                System.out.println(res.getString(1) + " - " + res.getString(2) + " - " + res.getString(3));
+            }
+        } catch (SQLException e) {
+            System.out.println("error: " + e.getMessage());
+        }
     }
 
     public void populateTable(String[] data, PreparedStatement ps) {
@@ -198,17 +248,6 @@ public class OlympicDBAccess {
                 String line = sc.nextLine();
                 String[] data = line.split(",");
                 populateTable.accept(data, ps);
-//                counter++;
-//                try {
-//                    if (counter % 5000 == 0) {
-//                        System.out.println("Clearing batch, counter="+counter);
-//                        ps.executeBatch();
-//                        conn.commit();
-//                        ps.clearBatch();
-//                    }
-//                } catch (SQLException e) {
-//                    System.out.println(counter + ": error: " + e.getMessage());
-//                }
             }
             // note that Scanner suppresses exceptions
             if (sc.ioException() != null) {
