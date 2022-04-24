@@ -18,6 +18,10 @@ public class OlympicDBAccess {
 
     private static Logger logger =
             Logger.getLogger(OlympicDBAccess.class.getName());
+
+    /**
+     * Connects to the mySQL database.
+     */
     public OlympicDBAccess() {
         String host = "seitux2.adfa.unsw.edu.au";
         String username = "z5414201";
@@ -31,7 +35,7 @@ public class OlympicDBAccess {
 
         try {
             // Connect to SSH to server containing mySQL server
-            Session session = jsch.getSession(host, username);
+            Session session = jsch.getSession(username, host);
             session.setPassword("2Wp5^cfgrE25agtE");
 
             Properties prop = new Properties();
@@ -57,6 +61,9 @@ public class OlympicDBAccess {
         }
     }
 
+    /**
+     * Creates all tables in the DB.
+     */
     public void createTables() {
         String CREATE_OLYMPICS = "CREATE TABLE OLYMPICS(" +
                 "ID INT NOT NULL AUTO_INCREMENT," +
@@ -66,29 +73,25 @@ public class OlympicDBAccess {
                 "PRIMARY KEY (ID));";
 
         String CREATE_EVENTS = "CREATE TABLE EVENTS(" +
-                "  ID INT NOT NULL AUTO_INCREMENT," +
-                "  SPORT VARCHAR(26)," +
-                "  EVENT VARCHAR(86)," +
-                "  PRIMARY KEY (ID)" +
-                ");";
+                "ID INT NOT NULL AUTO_INCREMENT," +
+                "SPORT VARCHAR(26)," +
+                "EVENT VARCHAR(86)," +
+                "PRIMARY KEY (ID));";
 
         String CREATE_ATHLETES = "CREATE TABLE ATHLETES(" +
-                "  ID INT NOT NULL AUTO_INCREMENT," +
-                "  NAME VARCHAR(94)," +
-                "  NOC CHAR(3)," +
-                "  GENDER CHAR(1)," +
-                "  PRIMARY KEY (ID)" +
-                ");";
+                "ID INT NOT NULL AUTO_INCREMENT," +
+                "NAME VARCHAR(94)," +
+                "NOC CHAR(3)," +
+                "GENDER CHAR(1)," +
+                "PRIMARY KEY (ID));";
 
-        String CREATE_MEDALS = "CREATE TABLE MEDALS" +
-                "(" +
-                "    ID        INT NOT NULL AUTO_INCREMENT," +
-                "    OLYMPICID INT, FOREIGN KEY (OLYMPICID) REFERENCES OLYMPICS(ID)," +
-                "    EVENTID INT, FOREIGN KEY (EVENTID) REFERENCES EVENTS(ID)," +
-                "    ATHLETEID INT, FOREIGN KEY (ATHLETEID) REFERENCES ATHLETES(ID)," +
-                "    MEDALCOLOUR VARCHAR(7)," +
-                "    PRIMARY KEY (ID)" +
-                ");";
+        String CREATE_MEDALS = "CREATE TABLE MEDALS(" +
+                "ID INT NOT NULL AUTO_INCREMENT," +
+                "OLYMPICID INT, FOREIGN KEY (OLYMPICID) REFERENCES OLYMPICS(ID)," +
+                "EVENTID INT, FOREIGN KEY (EVENTID) REFERENCES EVENTS(ID)," +
+                "ATHLETEID INT, FOREIGN KEY (ATHLETEID) REFERENCES ATHLETES(ID)," +
+                "MEDALCOLOUR VARCHAR(7)," +
+                "PRIMARY KEY (ID));";
 
         try (Statement stmt = conn.createStatement()) {
             stmt.executeUpdate(CREATE_OLYMPICS);
@@ -100,8 +103,9 @@ public class OlympicDBAccess {
         }
     }
 
-
-
+    /**
+     * Drops all tables from the DB
+     */
     public void dropTables() {
         try (Statement stmt = conn.createStatement()) {
             stmt.executeUpdate("DROP TABLE MEDALS, OLYMPICS, EVENTS, ATHLETES;");
@@ -110,6 +114,9 @@ public class OlympicDBAccess {
         }
     }
 
+    /**
+     * Method to transfer data from CSV files into the DB tables.
+     */
     public void populateTables() {
         //this should be the first line in this method.
         long time = System.currentTimeMillis();
@@ -118,7 +125,10 @@ public class OlympicDBAccess {
         String sqlOlympics = "INSERT INTO OLYMPICS (YEAR, SEASON, CITY) VALUES (?, ?, ?)";
         String sqlEvents = "INSERT INTO EVENTS (SPORT, EVENT) VALUES (?, ?)";
         String sqlAthletes = "INSERT INTO ATHLETES (NAME, NOC, GENDER) VALUES (?, ?, ?)";
-        String sqlMedals = "INSERT INTO MEDALS (OLYMPICID, EVENTID, ATHLETEID, MEDALCOLOUR) VALUES ((SELECT ID FROM OLYMPICS WHERE YEAR=? AND SEASON=? AND CITY=?), (SELECT ID FROM EVENTS WHERE SPORT=? AND EVENT=?), (SELECT ID FROM ATHLETES WHERE NAME=? AND NOC=? AND GENDER=?), ?)";
+        String sqlMedals = "INSERT INTO MEDALS (OLYMPICID, EVENTID, ATHLETEID, MEDALCOLOUR) " +
+                "VALUES ((SELECT ID FROM OLYMPICS WHERE YEAR=? AND SEASON=? AND CITY=?), " +
+                "(SELECT ID FROM EVENTS WHERE SPORT=? AND EVENT=?), " +
+                "(SELECT ID FROM ATHLETES WHERE NAME=? AND NOC=? AND GENDER=?), ?)";
 
         try (PreparedStatement ps = conn.prepareStatement(sqlOlympics)) {
             readData("resources/olympics.csv", ps, this::populateTable);
@@ -146,7 +156,6 @@ public class OlympicDBAccess {
 
         try (PreparedStatement ps = conn.prepareStatement(sqlMedals)) {
             readData("resources/medals.csv", ps, this::populateMedals);
-            System.out.println("statements created. Executing now");
             ps.executeBatch();
             conn.commit();
         } catch (SQLException e) {
@@ -155,9 +164,12 @@ public class OlympicDBAccess {
 
         //this should be the last line in this method
         logger.info("Time to populate: " + (System.currentTimeMillis() - time) + "ms");
-        System.out.println("Time to populate: " + (System.currentTimeMillis() - time) + "ms");
     }
 
+    /**
+     * Executes the queries defined in the task sheet and prints result
+     * to the console.
+     */
     public void runQueries() {
         String sql = "SELECT DISTINCT COUNT(*) FROM EVENTS WHERE SPORT='Athletics'";
         try (Statement stmt = conn.createStatement()) {
@@ -166,7 +178,7 @@ public class OlympicDBAccess {
             System.out.println("The number of distinct events that have the sport 'Athletics'");
             System.out.println(res.getString(1));
         } catch (SQLException e) {
-            System.out.println("error: " + e.getMessage());
+            logger.warning("Error executing query. Query: " + sql + "Error: " + e.getMessage());
         }
 
         sql = "SELECT YEAR, SEASON, CITY FROM OLYMPICS ORDER BY YEAR";
@@ -177,7 +189,7 @@ public class OlympicDBAccess {
                 System.out.println(res.getString(1) + " - " + res.getString(2) + " - " + res.getString(3));
             }
         } catch (SQLException e) {
-            System.out.println("error: " + e.getMessage());
+            logger.warning("Error executing query. Query: " + sql + "Error: " + e.getMessage());
         }
 
         try (Statement stmt = conn.createStatement()) {
@@ -197,7 +209,7 @@ public class OlympicDBAccess {
             res.absolute(1);
             System.out.println("Bronze: " + res.getString(1));
         } catch (SQLException e) {
-            System.out.println("error: " + e.getMessage());
+            logger.warning("Error executing query. Query: " + sql + "Error: " + e.getMessage());
         }
 
         try (Statement stmt = conn.createStatement()) {
@@ -208,10 +220,16 @@ public class OlympicDBAccess {
                 System.out.println(res.getString(1) + " - " + res.getString(2) + " - " + res.getString(3));
             }
         } catch (SQLException e) {
-            System.out.println("error: " + e.getMessage());
+            logger.warning("Error executing query. Query: " + sql + "Error: " + e.getMessage());
         }
     }
 
+    /**
+     * The helper method to load data into tables via batching prepared
+     * statements.
+     * @param data The column values for the DB row
+     * @param ps The DB connection/Prepared Statement object
+     */
     public void populateTable(String[] data, PreparedStatement ps) {
         try {
             for (int i = 0; i < data.length; i++) {
@@ -223,6 +241,12 @@ public class OlympicDBAccess {
         }
     }
 
+    /**
+     * The helper method used to interface with the DB and load data
+     * into the medals DB
+     * @param data The column values for the DB row
+     * @param ps The DB connection/Prepared Statement object
+     */
     public void populateMedals(String[] data, PreparedStatement ps) {
         try {
             ps.setString(1, data[3].replace("\"", ""));
@@ -243,6 +267,12 @@ public class OlympicDBAccess {
         }
     }
 
+    /**
+     * Reads a given CSV file and then executes populate table on the given data & statement
+     * @param path CSV file path
+     * @param ps DB Prepared Statement object to batch SQL queries
+     * @param populateTable Method to interface with DB & load data into table
+     */
     public void readData(String path, PreparedStatement ps, BiConsumer<String[], PreparedStatement> populateTable) {
         int counter = 0;
         try (FileInputStream inputStream = new FileInputStream(path); Scanner sc = new Scanner(inputStream, StandardCharsets.UTF_8)) {
