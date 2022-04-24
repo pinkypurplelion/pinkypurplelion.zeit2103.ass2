@@ -16,7 +16,7 @@ import java.util.logging.Logger;
 public class OlympicDBAccess {
     Connection conn;
 
-    private static Logger logger =
+    private static final Logger logger =
             Logger.getLogger(OlympicDBAccess.class.getName());
 
     /**
