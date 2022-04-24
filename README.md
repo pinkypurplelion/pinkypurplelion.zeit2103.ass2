@@ -12,6 +12,8 @@ listings-no-page-break: true
 
 # Task 1
 
+## Questions
+
 **For the Athletes table, would using name as the primary key be acceptable?**
 
 Not necessarily. Whilst the chance that two athletes have the same name is low, it is possible. Hence the name couldn't be used solely as the primary key because that would result in only one athlete with that name being able to be present in the database.
@@ -26,5 +28,8 @@ Alternative option for primary key: `olympicID + eventID + athleteID`. The alter
 
 **Why is 3NF desirable in a database?**
 
+In Third Normal Form (3NF), all transitive functional dependencies have been removed. This means that each column is only dependent on columns that are a part of the primary key. This results in redundancy within the tables being reduced. A reduction in redundancy is helpful because it makes it easier to change data, since it only appears in one place within the database. It also helps with search efficiency due to the inherent requirement of smaller tables when data is normalised. Finally, 3NF should also improve overall data quality since there is less of a chance unwanted data will be stored in the tables by requirement.
 
+# Task 2
 
+# Task 3
