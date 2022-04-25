@@ -22,9 +22,4 @@ class OlympicDBAccessTest {
     @Test
     void runQueries() {
     }
-
-//    @Test
-//    void readData() {
-//        OlympicDBAccess.readData("resources/olympics.csv", OlympicDBAccess::populateOlympics);
-//    }
 }
