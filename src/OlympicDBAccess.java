@@ -65,32 +65,32 @@ public class OlympicDBAccess {
      * Creates all tables in the DB.
      */
     public void createTables() {
-        String CREATE_OLYMPICS = "CREATE TABLE OLYMPICS(" +
+        String CREATE_OLYMPICS = "CREATE TABLE Olympics(" +
                 "ID INT NOT NULL AUTO_INCREMENT," +
-                "YEAR INT," +
-                "SEASON VARCHAR(7)," +
-                "CITY VARCHAR(23)," +
+                "year INT," +
+                "season VARCHAR(7)," +
+                "city VARCHAR(23)," +
                 "PRIMARY KEY (ID));";
 
-        String CREATE_EVENTS = "CREATE TABLE EVENTS(" +
+        String CREATE_EVENTS = "CREATE TABLE Events(" +
                 "ID INT NOT NULL AUTO_INCREMENT," +
-                "SPORT VARCHAR(26)," +
-                "EVENT VARCHAR(86)," +
+                "sport VARCHAR(26)," +
+                "event VARCHAR(86)," +
                 "PRIMARY KEY (ID));";
 
-        String CREATE_ATHLETES = "CREATE TABLE ATHLETES(" +
+        String CREATE_ATHLETES = "CREATE TABLE Athletes(" +
                 "ID INT NOT NULL AUTO_INCREMENT," +
-                "NAME VARCHAR(94)," +
-                "NOC CHAR(3)," +
-                "GENDER CHAR(1)," +
+                "name VARCHAR(94)," +
+                "noc CHAR(3)," +
+                "gender CHAR(1)," +
                 "PRIMARY KEY (ID));";
 
-        String CREATE_MEDALS = "CREATE TABLE MEDALS(" +
+        String CREATE_MEDALS = "CREATE TABLE Medals(" +
                 "ID INT NOT NULL AUTO_INCREMENT," +
-                "OLYMPICID INT, FOREIGN KEY (OLYMPICID) REFERENCES OLYMPICS(ID)," +
-                "EVENTID INT, FOREIGN KEY (EVENTID) REFERENCES EVENTS(ID)," +
-                "ATHLETEID INT, FOREIGN KEY (ATHLETEID) REFERENCES ATHLETES(ID)," +
-                "MEDALCOLOUR VARCHAR(7)," +
+                "olympicID INT, FOREIGN KEY (olympicID) REFERENCES Olympics(ID)," +
+                "eventID INT, FOREIGN KEY (eventID) REFERENCES Events(ID)," +
+                "athleteID INT, FOREIGN KEY (athleteID) REFERENCES Athletes(ID)," +
+                "medalColour VARCHAR(7)," +
                 "PRIMARY KEY (ID));";
 
         try (Statement stmt = conn.createStatement()) {
@@ -108,7 +108,7 @@ public class OlympicDBAccess {
      */
     public void dropTables() {
         try (Statement stmt = conn.createStatement()) {
-            stmt.executeUpdate("DROP TABLE MEDALS, OLYMPICS, EVENTS, ATHLETES;");
+            stmt.executeUpdate("DROP TABLE Medals, Olympics, Events, Athletes;");
         } catch (SQLException e) {
             logger.warning("Unable to drop all tables. Error: " + e.getMessage());
         }
@@ -122,13 +122,13 @@ public class OlympicDBAccess {
         long time = System.currentTimeMillis();
 
         //populate the tables here
-        String sqlOlympics = "INSERT INTO OLYMPICS (YEAR, SEASON, CITY) VALUES (?, ?, ?)";
-        String sqlEvents = "INSERT INTO EVENTS (SPORT, EVENT) VALUES (?, ?)";
-        String sqlAthletes = "INSERT INTO ATHLETES (NAME, NOC, GENDER) VALUES (?, ?, ?)";
-        String sqlMedals = "INSERT INTO MEDALS (OLYMPICID, EVENTID, ATHLETEID, MEDALCOLOUR) " +
-                "VALUES ((SELECT ID FROM OLYMPICS WHERE YEAR=? AND SEASON=? AND CITY=?), " +
-                "(SELECT ID FROM EVENTS WHERE SPORT=? AND EVENT=?), " +
-                "(SELECT ID FROM ATHLETES WHERE NAME=? AND NOC=? AND GENDER=?), ?)";
+        String sqlOlympics = "INSERT INTO Olympics (year, season, city) VALUES (?, ?, ?)";
+        String sqlEvents = "INSERT INTO Events (sport, event) VALUES (?, ?)";
+        String sqlAthletes = "INSERT INTO Athletes (name, noc, gender) VALUES (?, ?, ?)";
+        String sqlMedals = "INSERT INTO Medals (olympicID, eventID, athleteID, medalColour) " +
+                "VALUES ((SELECT ID FROM Olympics WHERE year=? AND season=? AND city=?), " +
+                "(SELECT ID FROM Events WHERE sport=? AND event=?), " +
+                "(SELECT ID FROM Athletes WHERE name=? AND noc=? AND gender=?), ?)";
 
         try (PreparedStatement ps = conn.prepareStatement(sqlOlympics)) {
             readData("resources/olympics.csv", ps, this::populateTable);
@@ -171,7 +171,7 @@ public class OlympicDBAccess {
      * to the console.
      */
     public void runQueries() {
-        String sql = "SELECT DISTINCT COUNT(*) FROM EVENTS WHERE SPORT='Athletics'";
+        String sql = "SELECT DISTINCT COUNT(*) FROM Events WHERE sport='Athletics'";
         try (Statement stmt = conn.createStatement()) {
             ResultSet res = stmt.executeQuery(sql);
             res.absolute(1);
@@ -181,7 +181,7 @@ public class OlympicDBAccess {
             logger.warning("Error executing query. Query: " + sql + "Error: " + e.getMessage());
         }
 
-        sql = "SELECT YEAR, SEASON, CITY FROM OLYMPICS ORDER BY YEAR";
+        sql = "SELECT year, season, city FROM Olympics ORDER BY year";
         try (Statement stmt = conn.createStatement()) {
             ResultSet res = stmt.executeQuery(sql);
             System.out.println("The year, season, and city for each Olympics, ordered with the earliest entries first.");
@@ -194,17 +194,17 @@ public class OlympicDBAccess {
 
         try (Statement stmt = conn.createStatement()) {
             System.out.println("The total number of each medal colour awarded to athletes from Australia (NOC: AUS) over all Olympics in the database.");
-            sql = "SELECT COUNT(MEDALS.ID) FROM MEDALS INNER JOIN ATHLETES ON MEDALS.ATHLETEID=ATHLETES.ID WHERE ATHLETES.NOC='AUS' AND MEDALS.MEDALCOLOUR='Gold'";
+            sql = "SELECT COUNT(Medals.ID) FROM Medals INNER JOIN Athletes ON Medals.athleteID=Athletes.ID WHERE Athletes.noc='AUS' AND Medals.medalColour='Gold'";
             ResultSet res = stmt.executeQuery(sql);
             res.absolute(1);
             System.out.println("Gold: " + res.getString(1));
 
-            sql = "SELECT COUNT(MEDALS.ID) FROM MEDALS INNER JOIN ATHLETES ON MEDALS.ATHLETEID=ATHLETES.ID WHERE ATHLETES.NOC='AUS' AND MEDALS.MEDALCOLOUR='Silver'";
+            sql = "SELECT COUNT(Medals.ID) FROM Medals INNER JOIN Athletes ON Medals.athleteID=Athletes.ID WHERE Athletes.noc='AUS' AND Medals.medalColour='Silver'";
             res = stmt.executeQuery(sql);
             res.absolute(1);
             System.out.println("Silver: " + res.getString(1));
 
-            sql = "SELECT COUNT(MEDALS.ID) FROM MEDALS INNER JOIN ATHLETES ON MEDALS.ATHLETEID=ATHLETES.ID WHERE ATHLETES.NOC='AUS' AND MEDALS.MEDALCOLOUR='Bronze'";
+            sql = "SELECT COUNT(Medals.ID) FROM Medals INNER JOIN Athletes ON Medals.athleteID=Athletes.ID WHERE Athletes.noc='AUS' AND Medals.medalColour='Bronze'";
             res = stmt.executeQuery(sql);
             res.absolute(1);
             System.out.println("Bronze: " + res.getString(1));
@@ -213,7 +213,7 @@ public class OlympicDBAccess {
         }
 
         try (Statement stmt = conn.createStatement()) {
-            sql = "SELECT ATHLETES.NAME, OLYMPICS.YEAR, OLYMPICS.SEASON FROM ATHLETES INNER JOIN MEDALS ON ATHLETES.ID = MEDALS.ATHLETEID INNER JOIN OLYMPICS ON MEDALS.OLYMPICID = OLYMPICS.ID WHERE ATHLETES.NOC='IRL' AND MEDALS.MEDALCOLOUR='Silver';";
+            sql = "SELECT Athletes.name, Olympics.year, Olympics.season FROM Athletes INNER JOIN Medals ON Athletes.ID = Medals.athleteID INNER JOIN Olympics ON Medals.olympicID = Olympics.ID WHERE Athletes.noc='IRL' AND Medals.medalColour='Silver';";
             ResultSet res = stmt.executeQuery(sql);
             System.out.println("The name of all athletes from Ireland (NOC: IRL) who won silver medals, and the year / season in which they won them..");
             while (res.next()) {
