@@ -94,10 +94,15 @@ public class OlympicDBAccess {
                 "PRIMARY KEY (ID));";
 
         try (Statement stmt = conn.createStatement()) {
-            stmt.executeUpdate(CREATE_OLYMPICS);
-            stmt.executeUpdate(CREATE_EVENTS);
-            stmt.executeUpdate(CREATE_ATHLETES);
-            stmt.executeUpdate(CREATE_MEDALS);
+            ResultSet rs;
+            String[] tables = new String[]{"Olympics", "Events", "Athletes", "Medals"};
+            String[] sql = new String[]{CREATE_OLYMPICS, CREATE_EVENTS, CREATE_ATHLETES, CREATE_MEDALS};
+            for (int i = 0; i < tables.length; i++) {
+                rs = stmt.executeQuery("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'z5414201' AND table_name = '" + tables[i] + "' LIMIT 1;");
+                rs.absolute(1);
+                if (rs.getInt(1) != 1) stmt.executeUpdate(sql[i]);
+            }
+            logger.info("All tables created!");
         } catch (SQLException e) {
             logger.warning("Unable to create all tables. Error: " + e.getMessage());
         }
@@ -298,8 +303,9 @@ public class OlympicDBAccess {
     }
 
     public ResultSet executeSQL(String sql) {
-        try (Statement stmt = conn.createStatement()) {
-            ResultSet rs;
+        ResultSet rs;
+        try {
+            Statement stmt = conn.createStatement();
             rs = stmt.executeQuery(sql);
             return rs;
         } catch (SQLException e) {
