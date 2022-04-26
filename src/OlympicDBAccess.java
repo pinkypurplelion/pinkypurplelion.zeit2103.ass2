@@ -70,20 +70,23 @@ public class OlympicDBAccess {
                 "year INT," +
                 "season VARCHAR(7)," +
                 "city VARCHAR(23)," +
-                "PRIMARY KEY (ID));";
+                "PRIMARY KEY (ID)," +
+                "INDEX (year, season, city));";
 
         String CREATE_EVENTS = "CREATE TABLE Events(" +
                 "ID INT NOT NULL AUTO_INCREMENT," +
                 "sport VARCHAR(26)," +
                 "event VARCHAR(86)," +
-                "PRIMARY KEY (ID));";
+                "PRIMARY KEY (ID)," +
+                "INDEX (sport, event));";
 
         String CREATE_ATHLETES = "CREATE TABLE Athletes(" +
                 "ID INT NOT NULL AUTO_INCREMENT," +
                 "name VARCHAR(94)," +
                 "noc CHAR(3)," +
                 "gender CHAR(1)," +
-                "PRIMARY KEY (ID));";
+                "PRIMARY KEY (ID)," +
+                "INDEX (name, noc, gender));";
 
         String CREATE_MEDALS = "CREATE TABLE Medals(" +
                 "ID INT NOT NULL AUTO_INCREMENT," +
@@ -156,6 +159,7 @@ public class OlympicDBAccess {
         } catch (SQLException e) {
             logger.severe("Unable to insert values into OLYMPICS table. Error: " + e.getMessage());
         }
+        logger.info("Time to populate: " + (System.currentTimeMillis() - time) + "ms");
 
         try (PreparedStatement ps = conn.prepareStatement(sqlEvents)) {
             readData("resources/events.csv", ps, this::populateTable);
@@ -164,6 +168,7 @@ public class OlympicDBAccess {
         } catch (SQLException e) {
             logger.severe("Unable to insert values into EVENTS table. Error: " + e.getMessage());
         }
+        logger.info("Time to populate: " + (System.currentTimeMillis() - time) + "ms");
 
         try (PreparedStatement ps = conn.prepareStatement(sqlAthletes)) {
             readData("resources/athletes.csv", ps, this::populateTable);
@@ -172,6 +177,7 @@ public class OlympicDBAccess {
         } catch (SQLException e) {
             logger.severe("Unable to insert values into ATHLETES table. Error: " + e.getMessage());
         }
+        logger.info("Time to populate: " + (System.currentTimeMillis() - time) + "ms");
 
         try (PreparedStatement ps = conn.prepareStatement(sqlMedals)) {
             readData("resources/medals.csv", ps, this::populateMedals);
