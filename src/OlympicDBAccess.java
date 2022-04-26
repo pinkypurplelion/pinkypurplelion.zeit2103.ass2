@@ -133,9 +133,9 @@ public class OlympicDBAccess {
         String sqlEvents = "INSERT INTO Events (sport, event) VALUES (?, ?)";
         String sqlAthletes = "INSERT INTO Athletes (name, noc, gender) VALUES (?, ?, ?)";
         String sqlMedals = "INSERT INTO Medals (olympicID, eventID, athleteID, medalColour) " +
-                "VALUES ((SELECT ID FROM Olympics WHERE year=? AND season=? AND city=?), " +
-                "(SELECT ID FROM Events WHERE sport=? AND event=?), " +
-                "(SELECT ID FROM Athletes WHERE name=? AND noc=? AND gender=?), ?)";
+                "VALUES ((SELECT ID FROM Olympics WHERE year=? AND season=? AND city=? LIMIT 1), " +
+                "(SELECT ID FROM Events WHERE sport=? AND event=? LIMIT 1), " +
+                "(SELECT ID FROM Athletes WHERE name=? AND noc=? AND gender=? LIMIT 1), ?)";
 
         try (PreparedStatement ps = conn.prepareStatement(sqlOlympics)) {
             readData("resources/olympics.csv", ps, this::populateTable);
@@ -294,6 +294,17 @@ public class OlympicDBAccess {
             }
         } catch (IOException e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    public ResultSet executeSQL(String sql) {
+        try (Statement stmt = conn.createStatement()) {
+            ResultSet rs;
+            rs = stmt.executeQuery(sql);
+            return rs;
+        } catch (SQLException e) {
+            logger.warning("Unable to drop tables. Error: " + e.getMessage());
+            return null;
         }
     }
 }
