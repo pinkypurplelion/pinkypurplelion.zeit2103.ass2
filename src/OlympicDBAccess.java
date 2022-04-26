@@ -117,10 +117,17 @@ public class OlympicDBAccess {
             String[] tables = new String[]{"Medals", "Olympics", "Events", "Athletes"};
             for (String table :
                     tables) {
-                rs = stmt.executeQuery("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'z5414201' AND table_name = '" + table + "' LIMIT 1;");
+                rs = stmt.executeQuery(
+                        "SELECT COUNT(*) " +
+                                "FROM information_schema.tables " +
+                                "WHERE table_schema = 'z5414201' " +
+                                "AND table_name = '" + table + "' " +
+                                "LIMIT 1;");
                 rs.absolute(1);
-                if (rs.getInt(1) == 1) stmt.executeUpdate("DROP TABLE " + table + ";");
+                if (rs.getInt(1) == 1)
+                    stmt.executeUpdate("DROP TABLE " + table + ";");
             }
+            logger.info("All tables dropped!");
         } catch (SQLException e) {
             logger.warning("Unable to drop tables. Error: " + e.getMessage());
         }
