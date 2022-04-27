@@ -108,6 +108,7 @@ public class OlympicDBAccess {
             logger.info("All tables created!");
         } catch (SQLException e) {
             logger.warning("Unable to create all tables. Error: " + e.getMessage());
+            throw new RuntimeException("Unable to create all tables. " + e);
         }
     }
 
@@ -133,6 +134,7 @@ public class OlympicDBAccess {
             logger.info("All tables dropped!");
         } catch (SQLException e) {
             logger.warning("Unable to drop tables. Error: " + e.getMessage());
+            throw new RuntimeException("Unable to drop all tables. " + e);
         }
     }
 
@@ -240,7 +242,7 @@ public class OlympicDBAccess {
         try (Statement stmt = conn.createStatement()) {
             sql = "SELECT Athletes.name, Olympics.year, Olympics.season FROM Athletes INNER JOIN Medals ON Athletes.ID = Medals.athleteID INNER JOIN Olympics ON Medals.olympicID = Olympics.ID WHERE Athletes.noc='IRL' AND Medals.medalColour='Silver';";
             ResultSet res = stmt.executeQuery(sql);
-            System.out.println("The name of all athletes from Ireland (NOC: IRL) who won silver medals, and the year / season in which they won them..");
+            System.out.println("The name of all athletes from Ireland (NOC: IRL) who won silver medals, and the year / season in which they won them.");
             while (res.next()) {
                 System.out.println(res.getString(1) + " - " + res.getString(2) + " - " + res.getString(3));
             }
@@ -299,7 +301,6 @@ public class OlympicDBAccess {
      * @param populateTable Method to interface with DB & load data into table
      */
     public void readData(String path, PreparedStatement ps, BiConsumer<String[], PreparedStatement> populateTable) {
-        int counter = 0;
         try (FileInputStream inputStream = new FileInputStream(path); Scanner sc = new Scanner(inputStream, StandardCharsets.UTF_8)) {
             while (sc.hasNextLine()) {
                 String line = sc.nextLine();
@@ -322,7 +323,7 @@ public class OlympicDBAccess {
             rs = stmt.executeQuery(sql);
             return rs;
         } catch (SQLException e) {
-            logger.warning("Unable to drop tables. Error: " + e.getMessage());
+            logger.warning("Unable to execute sql. Error: " + e.getMessage());
             return null;
         }
     }
