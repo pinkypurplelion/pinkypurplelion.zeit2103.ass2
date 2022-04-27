@@ -1,6 +1,7 @@
 package src;
 
 import com.jcraft.jsch.JSch;
+import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Session;
 
 import java.io.*;
@@ -9,13 +10,21 @@ import java.sql.*;
 import java.util.Properties;
 import java.util.Scanner;
 import java.util.function.BiConsumer;
+import java.util.logging.Logger;
 
 
 public class OlympicDBAccess {
     Connection conn;
+
+    private static final Logger logger =
+            Logger.getLogger(OlympicDBAccess.class.getName());
+
+    /**
+     * Connects to the mySQL database.
+     */
     public OlympicDBAccess() {
-        String jumpserverHost = "seitux2.adfa.unsw.edu.au";
-        String jumpserverUsername = "z5414201";
+        String host = "seitux2.adfa.unsw.edu.au";
+        String username = "z5414201";
 
         String databaseHost = "localhost";
         int databasePort = 3306;
@@ -25,12 +34,12 @@ public class OlympicDBAccess {
         JSch jsch = new JSch();
 
         try {
-            // Connect to SSH jump server (this does not show an authentication code)
-            Session session = jsch.getSession(jumpserverUsername, jumpserverHost);
+            // Connect to SSH to server containing mySQL server
+            Session session = jsch.getSession(username, host);
             session.setPassword("2Wp5^cfgrE25agtE");
 
             Properties prop = new Properties();
-            prop.put("StrictHostKeyChecking", "no");
+            prop.put("StrictHostKeyChecking", "no"); // doesn't check SSH cert.
             session.setConfig(prop);
             session.connect();
 
@@ -38,136 +47,168 @@ public class OlympicDBAccess {
             int forwardedPort = session.setPortForwardingL(0, databaseHost, databasePort);
 
             // Connect to the forwarded port (the local end of the SSH tunnel)
-            // If you don't use JDBC, but another database client,
-            // just connect it to the localhost:forwardedPort
-            String url = "jdbc:mysql://localhost:" + forwardedPort + "/z5414201?useServerPrepStmts=false&rewriteBatchedStatements=true";
+            String url = "jdbc:mysql://localhost:" + forwardedPort
+                    + "/z5414201?useServerPrepStmts=false&rewriteBatchedStatements=true";
             conn = DriverManager.getConnection(url, databaseUsername, databasePassword);
             conn.setAutoCommit(false);
-            System.out.println("Got it!");
-
-        } catch (Exception e) {
-            throw new Error("Problem", e);
+            logger.info("DB Connection Established");
+        } catch (JSchException e) {
+            logger.severe("Error connecting to the server: " + e.getMessage());
+            throw new RuntimeException(e);
+        } catch (SQLException e) {
+            logger.severe("Error connecting to the sql database: " + e.getMessage());
+            throw new RuntimeException(e);
         }
     }
 
+    /**
+     * Creates all tables in the DB.
+     */
     public void createTables() {
-        String CREATE_OLYMPICS = "CREATE TABLE OLYMPICS(" +
+        String CREATE_OLYMPICS = "CREATE TABLE Olympics(" +
                 "ID INT NOT NULL AUTO_INCREMENT," +
-                "YEAR INT," +
-                "SEASON VARCHAR(7)," +
-                "CITY VARCHAR(23)," +
+                "year INT," +
+                "season VARCHAR(7)," +
+                "city VARCHAR(23)," +
+                "PRIMARY KEY (ID)," +
+                "INDEX (year, season, city));";
+
+        String CREATE_EVENTS = "CREATE TABLE Events(" +
+                "ID INT NOT NULL AUTO_INCREMENT," +
+                "sport VARCHAR(26)," +
+                "event VARCHAR(86)," +
+                "PRIMARY KEY (ID)," +
+                "INDEX (sport, event));";
+
+        String CREATE_ATHLETES = "CREATE TABLE Athletes(" +
+                "ID INT NOT NULL AUTO_INCREMENT," +
+                "name VARCHAR(94)," +
+                "noc CHAR(3)," +
+                "gender CHAR(1)," +
+                "PRIMARY KEY (ID)," +
+                "INDEX (name, noc, gender));";
+
+        String CREATE_MEDALS = "CREATE TABLE Medals(" +
+                "ID INT NOT NULL AUTO_INCREMENT," +
+                "olympicID INT, FOREIGN KEY (olympicID) REFERENCES Olympics(ID)," +
+                "eventID INT, FOREIGN KEY (eventID) REFERENCES Events(ID)," +
+                "athleteID INT, FOREIGN KEY (athleteID) REFERENCES Athletes(ID)," +
+                "medalColour VARCHAR(7)," +
                 "PRIMARY KEY (ID));";
 
-        String CREATE_EVENTS = "CREATE TABLE EVENTS(" +
-                "  ID INT NOT NULL AUTO_INCREMENT," +
-                "  SPORT VARCHAR(26)," +
-                "  EVENT VARCHAR(86)," +
-                "  PRIMARY KEY (ID)" +
-                ");";
-
-        String CREATE_ATHLETES = "CREATE TABLE ATHLETES(" +
-                "  ID INT NOT NULL AUTO_INCREMENT," +
-                "  NAME VARCHAR(94)," +
-                "  NOC CHAR(3)," +
-                "  GENDER CHAR(1)," +
-                "  PRIMARY KEY (ID)" +
-                ");";
-
-        String CREATE_MEDALS = "CREATE TABLE MEDALS" +
-                "(" +
-                "    ID        INT NOT NULL AUTO_INCREMENT," +
-                "    OLYMPICID INT, FOREIGN KEY (OLYMPICID) REFERENCES OLYMPICS(ID)," +
-                "    EVENTID INT, FOREIGN KEY (EVENTID) REFERENCES EVENTS(ID)," +
-                "    ATHLETEID INT, FOREIGN KEY (ATHLETEID) REFERENCES ATHLETES(ID)," +
-                "    MEDALCOLOUR VARCHAR(7)," +
-                "    PRIMARY KEY (ID)" +
-                ");";
-
         try (Statement stmt = conn.createStatement()) {
-            stmt.executeUpdate(CREATE_OLYMPICS);
-            stmt.executeUpdate(CREATE_EVENTS);
-            stmt.executeUpdate(CREATE_ATHLETES);
-            stmt.executeUpdate(CREATE_MEDALS);
+            ResultSet rs;
+            String[] tables = new String[]{"Olympics", "Events", "Athletes", "Medals"};
+            String[] sql = new String[]{CREATE_OLYMPICS, CREATE_EVENTS, CREATE_ATHLETES, CREATE_MEDALS};
+            for (int i = 0; i < tables.length; i++) {
+                rs = stmt.executeQuery("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'z5414201' AND table_name = '" + tables[i] + "' LIMIT 1;");
+                rs.absolute(1);
+                if (rs.getInt(1) != 1) stmt.executeUpdate(sql[i]);
+            }
+            logger.info("All tables created!");
         } catch (SQLException e) {
-            System.out.println("error: " + e.getMessage());
+            logger.warning("Unable to create all tables. Error: " + e.getMessage());
+            throw new RuntimeException("Unable to create all tables. " + e);
         }
     }
 
-
-
+    /**
+     * Drops all tables from the DB
+     */
     public void dropTables() {
         try (Statement stmt = conn.createStatement()) {
-            stmt.executeUpdate("DROP TABLE MEDALS, OLYMPICS, EVENTS, ATHLETES;");
+            ResultSet rs;
+            String[] tables = new String[]{"Medals", "Olympics", "Events", "Athletes"};
+            for (String table :
+                    tables) {
+                rs = stmt.executeQuery(
+                        "SELECT COUNT(*) " +
+                                "FROM information_schema.tables " +
+                                "WHERE table_schema = 'z5414201' " +
+                                "AND table_name = '" + table + "' " +
+                                "LIMIT 1;");
+                rs.absolute(1);
+                if (rs.getInt(1) == 1)
+                    stmt.executeUpdate("DROP TABLE " + table + ";");
+            }
+            logger.info("All tables dropped!");
         } catch (SQLException e) {
-            System.out.println("error: " + e.getMessage());
+            logger.warning("Unable to drop tables. Error: " + e.getMessage());
+            throw new RuntimeException("Unable to drop all tables. " + e);
         }
     }
 
+    /**
+     * Method to transfer data from CSV files into the DB tables.
+     */
     public void populateTables() {
         //this should be the first line in this method.
         long time = System.currentTimeMillis();
 
         //populate the tables here
-        String sqlOlympics = "INSERT INTO OLYMPICS (YEAR, SEASON, CITY) VALUES (?, ?, ?)";
-        String sqlEvents = "INSERT INTO EVENTS (SPORT, EVENT) VALUES (?, ?)";
-        String sqlAthletes = "INSERT INTO ATHLETES (NAME, NOC, GENDER) VALUES (?, ?, ?)";
-        String sqlMedals = "INSERT INTO MEDALS (OLYMPICID, EVENTID, ATHLETEID, MEDALCOLOUR) VALUES ((SELECT ID FROM OLYMPICS WHERE YEAR=? AND SEASON=? AND CITY=?), (SELECT ID FROM EVENTS WHERE SPORT=? AND EVENT=?), (SELECT ID FROM ATHLETES WHERE NAME=? AND NOC=? AND GENDER=?), ?)";
+        String sqlOlympics = "INSERT INTO Olympics (year, season, city) VALUES (?, ?, ?)";
+        String sqlEvents = "INSERT INTO Events (sport, event) VALUES (?, ?)";
+        String sqlAthletes = "INSERT INTO Athletes (name, noc, gender) VALUES (?, ?, ?)";
+        String sqlMedals = "INSERT INTO Medals (olympicID, eventID, athleteID, medalColour) " +
+                "VALUES ((SELECT ID FROM Olympics WHERE year=? AND season=? AND city=? LIMIT 1), " +
+                "(SELECT ID FROM Events WHERE sport=? AND event=? LIMIT 1), " +
+                "(SELECT ID FROM Athletes WHERE name=? AND noc=? AND gender=? LIMIT 1), ?)";
 
         try (PreparedStatement ps = conn.prepareStatement(sqlOlympics)) {
             readData("resources/olympics.csv", ps, this::populateTable);
             ps.executeBatch();
             conn.commit();
         } catch (SQLException e) {
-            throw new RuntimeException(e);
+            logger.severe("Unable to insert values into OLYMPICS table. Error: " + e.getMessage());
         }
-        System.out.println("Time to populate: " + (System.currentTimeMillis() - time) + "ms");
+        logger.info("Time to populate: " + (System.currentTimeMillis() - time) + "ms");
 
         try (PreparedStatement ps = conn.prepareStatement(sqlEvents)) {
             readData("resources/events.csv", ps, this::populateTable);
             ps.executeBatch();
             conn.commit();
         } catch (SQLException e) {
-            throw new RuntimeException(e);
+            logger.severe("Unable to insert values into EVENTS table. Error: " + e.getMessage());
         }
-        System.out.println("Time to populate: " + (System.currentTimeMillis() - time) + "ms");
+        logger.info("Time to populate: " + (System.currentTimeMillis() - time) + "ms");
 
         try (PreparedStatement ps = conn.prepareStatement(sqlAthletes)) {
             readData("resources/athletes.csv", ps, this::populateTable);
             ps.executeBatch();
             conn.commit();
         } catch (SQLException e) {
-            throw new RuntimeException(e);
+            logger.severe("Unable to insert values into ATHLETES table. Error: " + e.getMessage());
         }
-        System.out.println("Time to populate: " + (System.currentTimeMillis() - time) + "ms");
+        logger.info("Time to populate: " + (System.currentTimeMillis() - time) + "ms");
 
         try (PreparedStatement ps = conn.prepareStatement(sqlMedals)) {
             readData("resources/medals.csv", ps, this::populateMedals);
-            System.out.println("statements created. Executing now");
             ps.executeBatch();
             conn.commit();
         } catch (SQLException e) {
-            System.out.println(e.getMessage());
-            System.out.println(e.getSQLState());
-            System.out.println("Time to populate: " + (System.currentTimeMillis() - time) + "ms");
-//            throw new RuntimeException(e);
+            logger.severe("Unable to insert values into MEDALS table. Error: " + e.getMessage());
         }
 
         //this should be the last line in this method
-        System.out.println("Time to populate: " + (System.currentTimeMillis() - time) + "ms");
+        logger.info("Time to populate: " + (System.currentTimeMillis() - time) + "ms");
     }
 
+    /**
+     * Executes the queries defined in the task sheet and prints result
+     * to the console.
+     */
     public void runQueries() {
-        String sql = "SELECT DISTINCT COUNT(*) FROM EVENTS WHERE SPORT='Athletics'";
+        String sql = "SELECT DISTINCT COUNT(*) FROM Events WHERE sport='Athletics'";
         try (Statement stmt = conn.createStatement()) {
             ResultSet res = stmt.executeQuery(sql);
             res.absolute(1);
             System.out.println("The number of distinct events that have the sport 'Athletics'");
             System.out.println(res.getString(1));
         } catch (SQLException e) {
-            System.out.println("error: " + e.getMessage());
+            logger.warning("Error executing query. Query: " + sql + "Error: " + e.getMessage());
         }
 
-        sql = "SELECT YEAR, SEASON, CITY FROM OLYMPICS ORDER BY YEAR";
+        sql = "SELECT year, season, city FROM Olympics ORDER BY year";
         try (Statement stmt = conn.createStatement()) {
             ResultSet res = stmt.executeQuery(sql);
             System.out.println("The year, season, and city for each Olympics, ordered with the earliest entries first.");
@@ -175,41 +216,47 @@ public class OlympicDBAccess {
                 System.out.println(res.getString(1) + " - " + res.getString(2) + " - " + res.getString(3));
             }
         } catch (SQLException e) {
-            System.out.println("error: " + e.getMessage());
+            logger.warning("Error executing query. Query: " + sql + "Error: " + e.getMessage());
         }
 
         try (Statement stmt = conn.createStatement()) {
             System.out.println("The total number of each medal colour awarded to athletes from Australia (NOC: AUS) over all Olympics in the database.");
-            sql = "SELECT COUNT(MEDALS.ID) FROM MEDALS INNER JOIN ATHLETES ON MEDALS.ATHLETEID=ATHLETES.ID WHERE ATHLETES.NOC='AUS' AND MEDALS.MEDALCOLOUR='Gold'";
+            sql = "SELECT COUNT(Medals.ID) FROM Medals INNER JOIN Athletes ON Medals.athleteID=Athletes.ID WHERE Athletes.noc='AUS' AND Medals.medalColour='Gold'";
             ResultSet res = stmt.executeQuery(sql);
             res.absolute(1);
             System.out.println("Gold: " + res.getString(1));
 
-            sql = "SELECT COUNT(MEDALS.ID) FROM MEDALS INNER JOIN ATHLETES ON MEDALS.ATHLETEID=ATHLETES.ID WHERE ATHLETES.NOC='AUS' AND MEDALS.MEDALCOLOUR='Silver'";
+            sql = "SELECT COUNT(Medals.ID) FROM Medals INNER JOIN Athletes ON Medals.athleteID=Athletes.ID WHERE Athletes.noc='AUS' AND Medals.medalColour='Silver'";
             res = stmt.executeQuery(sql);
             res.absolute(1);
             System.out.println("Silver: " + res.getString(1));
 
-            sql = "SELECT COUNT(MEDALS.ID) FROM MEDALS INNER JOIN ATHLETES ON MEDALS.ATHLETEID=ATHLETES.ID WHERE ATHLETES.NOC='AUS' AND MEDALS.MEDALCOLOUR='Bronze'";
+            sql = "SELECT COUNT(Medals.ID) FROM Medals INNER JOIN Athletes ON Medals.athleteID=Athletes.ID WHERE Athletes.noc='AUS' AND Medals.medalColour='Bronze'";
             res = stmt.executeQuery(sql);
             res.absolute(1);
             System.out.println("Bronze: " + res.getString(1));
         } catch (SQLException e) {
-            System.out.println("error: " + e.getMessage());
+            logger.warning("Error executing query. Query: " + sql + "Error: " + e.getMessage());
         }
 
         try (Statement stmt = conn.createStatement()) {
-            sql = "SELECT ATHLETES.NAME, OLYMPICS.YEAR, OLYMPICS.SEASON FROM ATHLETES INNER JOIN MEDALS ON ATHLETES.ID = MEDALS.ATHLETEID INNER JOIN OLYMPICS ON MEDALS.OLYMPICID = OLYMPICS.ID WHERE ATHLETES.NOC='IRL' AND MEDALS.MEDALCOLOUR='Silver';";
+            sql = "SELECT Athletes.name, Olympics.year, Olympics.season FROM Athletes INNER JOIN Medals ON Athletes.ID = Medals.athleteID INNER JOIN Olympics ON Medals.olympicID = Olympics.ID WHERE Athletes.noc='IRL' AND Medals.medalColour='Silver';";
             ResultSet res = stmt.executeQuery(sql);
-            System.out.println("The name of all athletes from Ireland (NOC: IRL) who won silver medals, and the year / season in which they won them..");
+            System.out.println("The name of all athletes from Ireland (NOC: IRL) who won silver medals, and the year / season in which they won them.");
             while (res.next()) {
                 System.out.println(res.getString(1) + " - " + res.getString(2) + " - " + res.getString(3));
             }
         } catch (SQLException e) {
-            System.out.println("error: " + e.getMessage());
+            logger.warning("Error executing query. Query: " + sql + "Error: " + e.getMessage());
         }
     }
 
+    /**
+     * The helper method to load data into tables via batching prepared
+     * statements.
+     * @param data The column values for the DB row
+     * @param ps The DB connection/Prepared Statement object
+     */
     public void populateTable(String[] data, PreparedStatement ps) {
         try {
             for (int i = 0; i < data.length; i++) {
@@ -221,6 +268,12 @@ public class OlympicDBAccess {
         }
     }
 
+    /**
+     * The helper method used to interface with the DB and load data
+     * into the medals DB
+     * @param data The column values for the DB row
+     * @param ps The DB connection/Prepared Statement object
+     */
     public void populateMedals(String[] data, PreparedStatement ps) {
         try {
             ps.setString(1, data[3].replace("\"", ""));
@@ -241,8 +294,13 @@ public class OlympicDBAccess {
         }
     }
 
+    /**
+     * Reads a given CSV file and then executes populate table on the given data & statement
+     * @param path CSV file path
+     * @param ps DB Prepared Statement object to batch SQL queries
+     * @param populateTable Method to interface with DB & load data into table
+     */
     public void readData(String path, PreparedStatement ps, BiConsumer<String[], PreparedStatement> populateTable) {
-        int counter = 0;
         try (FileInputStream inputStream = new FileInputStream(path); Scanner sc = new Scanner(inputStream, StandardCharsets.UTF_8)) {
             while (sc.hasNextLine()) {
                 String line = sc.nextLine();
@@ -255,6 +313,18 @@ public class OlympicDBAccess {
             }
         } catch (IOException e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    public ResultSet executeSQL(String sql) {
+        ResultSet rs;
+        try {
+            Statement stmt = conn.createStatement();
+            rs = stmt.executeQuery(sql);
+            return rs;
+        } catch (SQLException e) {
+            logger.warning("Unable to execute sql. Error: " + e.getMessage());
+            return null;
         }
     }
 }
