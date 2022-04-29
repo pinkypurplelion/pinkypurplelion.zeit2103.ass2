@@ -50,7 +50,7 @@ public class OlympicDBAccess {
             String url = "jdbc:mysql://localhost:" + forwardedPort
                     + "/z5414201?useServerPrepStmts=false&rewriteBatchedStatements=true";
             conn = DriverManager.getConnection(url, databaseUsername, databasePassword);
-            conn.setAutoCommit(false);
+//            conn.setAutoCommit(false);
             logger.info("DB Connection Established");
         } catch (JSchException e) {
             logger.severe("Error connecting to the server: " + e.getMessage());
@@ -149,6 +149,7 @@ public class OlympicDBAccess {
         String sqlOlympics = "INSERT INTO Olympics (year, season, city) VALUES (?, ?, ?)";
         String sqlEvents = "INSERT INTO Events (sport, event) VALUES (?, ?)";
         String sqlAthletes = "INSERT INTO Athletes (name, noc, gender) VALUES (?, ?, ?)";
+
         String sqlMedals = "INSERT INTO Medals (olympicID, eventID, athleteID, medalColour) " +
                 "VALUES ((SELECT ID FROM Olympics WHERE year=? AND season=? AND city=? LIMIT 1), " +
                 "(SELECT ID FROM Events WHERE sport=? AND event=? LIMIT 1), " +
@@ -301,7 +302,8 @@ public class OlympicDBAccess {
      * @param populateTable Method to interface with DB & load data into table
      */
     public void readData(String path, PreparedStatement ps, BiConsumer<String[], PreparedStatement> populateTable) {
-        try (FileInputStream inputStream = new FileInputStream(path); Scanner sc = new Scanner(inputStream, StandardCharsets.UTF_8)) {
+        try (FileInputStream inputStream = new FileInputStream(path);
+             Scanner sc = new Scanner(inputStream, StandardCharsets.UTF_8)) {
             while (sc.hasNextLine()) {
                 String line = sc.nextLine();
                 String[] data = line.split(",");
