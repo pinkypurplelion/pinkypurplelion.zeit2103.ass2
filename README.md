@@ -192,3 +192,38 @@ Gary O'Donovan - 2016 - Summer
 Paul O'Donovan - 2016 - Summer
 ```
 
+# Testing Logs
+
+```
+May 01, 2022 12:21:17 PM src.OlympicDBAccess <init>
+INFO: DB Connection Established
+May 01, 2022 12:21:17 PM src.OlympicDBAccess dropTables
+INFO: All tables dropped!
+May 01, 2022 12:21:17 PM src.OlympicDBAccess createTables
+INFO: All tables created!
+May 01, 2022 12:21:17 PM src.OlympicDBAccess main
+INFO: createTables: true - TEST PASSED
+May 01, 2022 12:21:17 PM src.OlympicDBAccess dropTables
+INFO: All tables dropped!
+May 01, 2022 12:21:17 PM src.OlympicDBAccess createTables
+INFO: All tables created!
+May 01, 2022 12:21:17 PM src.OlympicDBAccess dropTables
+INFO: All tables dropped!
+May 01, 2022 12:21:17 PM src.OlympicDBAccess main
+INFO: dropTables: true - TEST PASSED
+May 01, 2022 12:21:17 PM src.OlympicDBAccess dropTables
+INFO: All tables dropped!
+May 01, 2022 12:21:17 PM src.OlympicDBAccess createTables
+INFO: All tables created!
+May 01, 2022 12:21:18 PM src.OlympicDBAccess populateTables
+INFO: Olympics Populated. Time to populate: 59ms
+May 01, 2022 12:21:18 PM src.OlympicDBAccess populateTables
+INFO: Events Populated. Time to populate Events: 186ms
+May 01, 2022 12:21:18 PM src.OlympicDBAccess populateTables
+INFO: Athletes Populated. Time to populate: 1061ms
+May 01, 2022 12:21:33 PM src.OlympicDBAccess populateTables
+INFO: Medals Populated. Time to populate all tables: 15856ms
+May 01, 2022 12:21:33 PM src.OlympicDBAccess main
+INFO: populateTables: true - TEST PASSED
+```
+
