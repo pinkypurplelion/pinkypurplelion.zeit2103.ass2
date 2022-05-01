@@ -18,9 +18,13 @@ The SQL statements are hardcoded into the program. When creating the tables, the
 
 An index of the columns is created for each table to help improve write performance of the database. This enables efficient performance of subqueries when populating the medals table.
 
+`createTables` is tested using the `information_schema` table in MySQL. The test calls the `createTables()` method and then verifies that 4 tables have been created. 
+
 ## `dropTables()`
 
 `dropTables()` iterates through the four possible tables, first checking if they exist in the database through querying the information schema. If they do, a `DROP TABLE` statement is executed on the database to delete the table. The `Medals` table is attempted to be deleted first due to its dependence on the other tables. If an `SQLException ` occurs, an error message is printed out and an error is thrown by the software. 
+
+`dropTables` is tested using the `information_schema` table in MySQL. The test calls the `createTables()`, then `dropTables()` methods and then verifies that there are no tables present in the database.
 
 ## Questions
 
@@ -47,6 +51,19 @@ In Third Normal Form (3NF), all transitive functional dependencies have been rem
 This is the main method responsible for populating the tables within the database. It makes use of SQL `PreparedStatements` to increase performance over continuous `INSERT` operations. `populateTables()` makes use of two helper methods to ensure efficient database operations. The `readData()` method is responsible for loading data in from the csv files. It parses the given file by-line, splitting the data into columns as a `String[]` and then passing it to a DB interface method to populate the tables. The `populateTable()` and `populateMedals()` methods are responsible for interfacing with the DB directly. They use the `PreparedStatement` provided by `populateTables()` and substitute the data provided by `readData()`. The statement is then added to a query batch that is sent as bulk to the server at the completion of the file read. This significantly increases the performance of the database since each query is not being sent, executed and responded to individually. The connection is also created with client side batch statement rewriting, which optimizes and accelerates batch SQL statements - further increasing performance. The tables are all populated individually, with Medals being populated last due to dependence on the other tables. 
 
 The time to populate all tables was approximately 14 seconds. 
+
+```
+May 01, 2022 10:50:07 AM src.OlympicDBAccess populateTables
+INFO: Olympics Populated. Time to populate: 65ms
+May 01, 2022 10:50:07 AM src.OlympicDBAccess populateTables
+INFO: Events Populated. Time to populate Events: 182ms
+May 01, 2022 10:50:08 AM src.OlympicDBAccess populateTables
+INFO: Athletes Populated. Time to populate: 1017ms
+May 01, 2022 10:50:21 AM src.OlympicDBAccess populateTables
+INFO: Medals Populated. Time to populate all tables: 13814ms
+```
+
+`populateTables()` is tested by confirming that the number of records that exist in the database corresponds and equals the number of rows in the related excel spreadsheet.
 
 # Task 3
 
@@ -173,5 +190,40 @@ John Joseph 'Joe' Nevin - 2012 - Summer
 Annalise Murphy - 2016 - Summer
 Gary O'Donovan - 2016 - Summer
 Paul O'Donovan - 2016 - Summer
+```
+
+# Testing Logs
+
+```
+May 01, 2022 12:21:17 PM src.OlympicDBAccess <init>
+INFO: DB Connection Established
+May 01, 2022 12:21:17 PM src.OlympicDBAccess dropTables
+INFO: All tables dropped!
+May 01, 2022 12:21:17 PM src.OlympicDBAccess createTables
+INFO: All tables created!
+May 01, 2022 12:21:17 PM src.OlympicDBAccess main
+INFO: createTables: true - TEST PASSED
+May 01, 2022 12:21:17 PM src.OlympicDBAccess dropTables
+INFO: All tables dropped!
+May 01, 2022 12:21:17 PM src.OlympicDBAccess createTables
+INFO: All tables created!
+May 01, 2022 12:21:17 PM src.OlympicDBAccess dropTables
+INFO: All tables dropped!
+May 01, 2022 12:21:17 PM src.OlympicDBAccess main
+INFO: dropTables: true - TEST PASSED
+May 01, 2022 12:21:17 PM src.OlympicDBAccess dropTables
+INFO: All tables dropped!
+May 01, 2022 12:21:17 PM src.OlympicDBAccess createTables
+INFO: All tables created!
+May 01, 2022 12:21:18 PM src.OlympicDBAccess populateTables
+INFO: Olympics Populated. Time to populate: 59ms
+May 01, 2022 12:21:18 PM src.OlympicDBAccess populateTables
+INFO: Events Populated. Time to populate Events: 186ms
+May 01, 2022 12:21:18 PM src.OlympicDBAccess populateTables
+INFO: Athletes Populated. Time to populate: 1061ms
+May 01, 2022 12:21:33 PM src.OlympicDBAccess populateTables
+INFO: Medals Populated. Time to populate all tables: 15856ms
+May 01, 2022 12:21:33 PM src.OlympicDBAccess main
+INFO: populateTables: true - TEST PASSED
 ```
 

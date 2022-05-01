@@ -54,18 +54,19 @@ public class OlympicDBAccess {
             logger.info("DB Connection Established");
         } catch (JSchException e) {
             logger.severe("Error connecting to the server: " + e.getMessage());
-            throw new RuntimeException(e);
         } catch (SQLException e) {
             logger.severe("Error connecting to the sql database: " + e.getMessage());
-            throw new RuntimeException(e);
         }
     }
 
     /**
      * Creates all tables in the DB.
+     *
+     * INDEX is used in SQL statements to enhance table query performance
      */
     public void createTables() {
-        String CREATE_OLYMPICS = "CREATE TABLE Olympics(" +
+        String[] sql = new String[4];
+        sql[0] = "CREATE TABLE IF NOT EXISTS Olympics(" +
                 "ID INT NOT NULL AUTO_INCREMENT," +
                 "year INT," +
                 "season VARCHAR(7)," +
@@ -73,14 +74,14 @@ public class OlympicDBAccess {
                 "PRIMARY KEY (ID)," +
                 "INDEX (year, season, city));";
 
-        String CREATE_EVENTS = "CREATE TABLE Events(" +
+        sql[1] = "CREATE TABLE IF NOT EXISTS Events(" +
                 "ID INT NOT NULL AUTO_INCREMENT," +
                 "sport VARCHAR(26)," +
                 "event VARCHAR(86)," +
                 "PRIMARY KEY (ID)," +
                 "INDEX (sport, event));";
 
-        String CREATE_ATHLETES = "CREATE TABLE Athletes(" +
+        sql[2] = "CREATE TABLE IF NOT EXISTS Athletes(" +
                 "ID INT NOT NULL AUTO_INCREMENT," +
                 "name VARCHAR(94)," +
                 "noc CHAR(3)," +
@@ -88,7 +89,7 @@ public class OlympicDBAccess {
                 "PRIMARY KEY (ID)," +
                 "INDEX (name, noc, gender));";
 
-        String CREATE_MEDALS = "CREATE TABLE Medals(" +
+        sql[3] = "CREATE TABLE IF NOT EXISTS Medals(" +
                 "ID INT NOT NULL AUTO_INCREMENT," +
                 "olympicID INT, FOREIGN KEY (olympicID) REFERENCES Olympics(ID)," +
                 "eventID INT, FOREIGN KEY (eventID) REFERENCES Events(ID)," +
@@ -97,18 +98,10 @@ public class OlympicDBAccess {
                 "PRIMARY KEY (ID));";
 
         try (Statement stmt = conn.createStatement()) {
-            ResultSet rs;
-            String[] tables = new String[]{"Olympics", "Events", "Athletes", "Medals"};
-            String[] sql = new String[]{CREATE_OLYMPICS, CREATE_EVENTS, CREATE_ATHLETES, CREATE_MEDALS};
-            for (int i = 0; i < tables.length; i++) {
-                rs = stmt.executeQuery("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'z5414201' AND table_name = '" + tables[i] + "' LIMIT 1;");
-                rs.absolute(1);
-                if (rs.getInt(1) != 1) stmt.executeUpdate(sql[i]);
-            }
+            for (String s : sql) stmt.executeUpdate(s);
             logger.info("All tables created!");
         } catch (SQLException e) {
-            logger.warning("Unable to create all tables. Error: " + e.getMessage());
-            throw new RuntimeException("Unable to create all tables. " + e);
+            logger.severe("Unable to create all tables. Error: " + e.getMessage());
         }
     }
 
@@ -117,24 +110,11 @@ public class OlympicDBAccess {
      */
     public void dropTables() {
         try (Statement stmt = conn.createStatement()) {
-            ResultSet rs;
-            String[] tables = new String[]{"Medals", "Olympics", "Events", "Athletes"};
-            for (String table :
-                    tables) {
-                rs = stmt.executeQuery(
-                        "SELECT COUNT(*) " +
-                                "FROM information_schema.tables " +
-                                "WHERE table_schema = 'z5414201' " +
-                                "AND table_name = '" + table + "' " +
-                                "LIMIT 1;");
-                rs.absolute(1);
-                if (rs.getInt(1) == 1)
-                    stmt.executeUpdate("DROP TABLE " + table + ";");
-            }
+            for (String table : new String[]{"Medals", "Olympics", "Events", "Athletes"})
+                stmt.executeUpdate("DROP TABLE IF EXISTS " + table + ";");
             logger.info("All tables dropped!");
         } catch (SQLException e) {
-            logger.warning("Unable to drop tables. Error: " + e.getMessage());
-            throw new RuntimeException("Unable to drop all tables. " + e);
+            logger.severe("Unable to drop tables. Error: " + e.getMessage());
         }
     }
 
@@ -149,6 +129,7 @@ public class OlympicDBAccess {
         String sqlOlympics = "INSERT INTO Olympics (year, season, city) VALUES (?, ?, ?)";
         String sqlEvents = "INSERT INTO Events (sport, event) VALUES (?, ?)";
         String sqlAthletes = "INSERT INTO Athletes (name, noc, gender) VALUES (?, ?, ?)";
+
         String sqlMedals = "INSERT INTO Medals (olympicID, eventID, athleteID, medalColour) " +
                 "VALUES ((SELECT ID FROM Olympics WHERE year=? AND season=? AND city=? LIMIT 1), " +
                 "(SELECT ID FROM Events WHERE sport=? AND event=? LIMIT 1), " +
@@ -161,7 +142,7 @@ public class OlympicDBAccess {
         } catch (SQLException e) {
             logger.severe("Unable to insert values into OLYMPICS table. Error: " + e.getMessage());
         }
-        logger.info("Time to populate: " + (System.currentTimeMillis() - time) + "ms");
+        logger.info("Olympics Populated. Time to populate: " + (System.currentTimeMillis() - time) + "ms");
 
         try (PreparedStatement ps = conn.prepareStatement(sqlEvents)) {
             readData("resources/events.csv", ps, this::populateTable);
@@ -170,7 +151,7 @@ public class OlympicDBAccess {
         } catch (SQLException e) {
             logger.severe("Unable to insert values into EVENTS table. Error: " + e.getMessage());
         }
-        logger.info("Time to populate: " + (System.currentTimeMillis() - time) + "ms");
+        logger.info("Events Populated. Time to populate Events: " + (System.currentTimeMillis() - time) + "ms");
 
         try (PreparedStatement ps = conn.prepareStatement(sqlAthletes)) {
             readData("resources/athletes.csv", ps, this::populateTable);
@@ -179,7 +160,7 @@ public class OlympicDBAccess {
         } catch (SQLException e) {
             logger.severe("Unable to insert values into ATHLETES table. Error: " + e.getMessage());
         }
-        logger.info("Time to populate: " + (System.currentTimeMillis() - time) + "ms");
+        logger.info("Athletes Populated. Time to populate: " + (System.currentTimeMillis() - time) + "ms");
 
         try (PreparedStatement ps = conn.prepareStatement(sqlMedals)) {
             readData("resources/medals.csv", ps, this::populateMedals);
@@ -190,7 +171,7 @@ public class OlympicDBAccess {
         }
 
         //this should be the last line in this method
-        logger.info("Time to populate: " + (System.currentTimeMillis() - time) + "ms");
+        logger.info("Medals Populated. Time to populate all tables: " + (System.currentTimeMillis() - time) + "ms");
     }
 
     /**
@@ -205,7 +186,7 @@ public class OlympicDBAccess {
             System.out.println("The number of distinct events that have the sport 'Athletics'");
             System.out.println(res.getString(1));
         } catch (SQLException e) {
-            logger.warning("Error executing query. Query: " + sql + "Error: " + e.getMessage());
+            logger.severe("Error executing query. Query: " + sql + "Error: " + e.getMessage());
         }
 
         sql = "SELECT year, season, city FROM Olympics ORDER BY year";
@@ -216,7 +197,7 @@ public class OlympicDBAccess {
                 System.out.println(res.getString(1) + " - " + res.getString(2) + " - " + res.getString(3));
             }
         } catch (SQLException e) {
-            logger.warning("Error executing query. Query: " + sql + "Error: " + e.getMessage());
+            logger.severe("Error executing query. Query: " + sql + "Error: " + e.getMessage());
         }
 
         try (Statement stmt = conn.createStatement()) {
@@ -236,7 +217,7 @@ public class OlympicDBAccess {
             res.absolute(1);
             System.out.println("Bronze: " + res.getString(1));
         } catch (SQLException e) {
-            logger.warning("Error executing query. Query: " + sql + "Error: " + e.getMessage());
+            logger.severe("Error executing query. Query: " + sql + "Error: " + e.getMessage());
         }
 
         try (Statement stmt = conn.createStatement()) {
@@ -247,7 +228,7 @@ public class OlympicDBAccess {
                 System.out.println(res.getString(1) + " - " + res.getString(2) + " - " + res.getString(3));
             }
         } catch (SQLException e) {
-            logger.warning("Error executing query. Query: " + sql + "Error: " + e.getMessage());
+            logger.severe("Error executing query. Query: " + sql + "Error: " + e.getMessage());
         }
     }
 
@@ -264,7 +245,7 @@ public class OlympicDBAccess {
             }
             ps.addBatch();
         } catch (SQLException e) {
-            System.out.println("error: " + e.getMessage());
+            logger.severe("Error populating table. Error: " + e.getMessage());
         }
     }
 
@@ -290,7 +271,7 @@ public class OlympicDBAccess {
             ps.setString(9, data[8].replace("\"", ""));
             ps.addBatch();
         } catch (SQLException e) {
-            System.out.println("error: " + e.getMessage());
+            logger.severe("Error populating medals table. Error: " + e.getMessage());
         }
     }
 
@@ -301,7 +282,8 @@ public class OlympicDBAccess {
      * @param populateTable Method to interface with DB & load data into table
      */
     public void readData(String path, PreparedStatement ps, BiConsumer<String[], PreparedStatement> populateTable) {
-        try (FileInputStream inputStream = new FileInputStream(path); Scanner sc = new Scanner(inputStream, StandardCharsets.UTF_8)) {
+        try (FileInputStream inputStream = new FileInputStream(path);
+             Scanner sc = new Scanner(inputStream, StandardCharsets.UTF_8)) {
             while (sc.hasNextLine()) {
                 String line = sc.nextLine();
                 String[] data = line.split(",");
@@ -309,22 +291,100 @@ public class OlympicDBAccess {
             }
             // note that Scanner suppresses exceptions
             if (sc.ioException() != null) {
-                throw sc.ioException();
+                logger.severe("IOException: Error reading file. Error: " + sc.ioException());
             }
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            logger.severe("Error reading files. File path: " + path + "Error: " + e.getMessage());
         }
     }
 
-    public ResultSet executeSQL(String sql) {
+    /**
+     * PSVM method to handle testing for the class.
+     * @param args NA.
+     */
+    public static void main(String[] args) {
+        OlympicDBAccess db = new OlympicDBAccess();
+
+        // createTables test
+        db.dropTables();
+        logger.info("createTables: " + db.createTablesTest());
+
+        // dropTables test
+        db.dropTables();
+        logger.info("dropTables: " + db.dropTablesTest());
+
+        // populateTables test
+        db.dropTables();
+        logger.info("populateTables: " + db.populateTablesTest());
+    }
+
+    /**
+     * Method to test the createTables method.
+     * @return Returns true if method works, false if not.
+     */
+    public boolean createTablesTest() {
+        createTables();
+        String sql = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'z5414201' LIMIT 4;";
         ResultSet rs;
-        try {
-            Statement stmt = conn.createStatement();
+        try (Statement stmt = conn.createStatement()) {
             rs = stmt.executeQuery(sql);
-            return rs;
+            rs.absolute(1);
+            return rs.getInt(1) == 4;
         } catch (SQLException e) {
-            logger.warning("Unable to execute sql. Error: " + e.getMessage());
-            return null;
+            logger.severe("Unable to execute sql. Error: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Method to test the dropTables method.
+     * @return Returns true if method works, false if not.
+     */
+    public boolean dropTablesTest() {
+        createTables();
+        dropTables();
+        String sql = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'z5414201' LIMIT 4;";
+        ResultSet rs;
+        try (Statement stmt = conn.createStatement()) {
+            rs = stmt.executeQuery(sql);
+            rs.absolute(1);
+            return rs.getInt(1) == 0;
+        } catch (SQLException e) {
+            logger.severe("Unable to execute sql. Error: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * A method to test the populateTables and associated helper methods.
+     * @return Returns true if method works (for populating all tables), false if not.
+     */
+    public boolean populateTablesTest() {
+        createTables();
+        populateTables();
+        boolean[] result = new boolean[4];
+        try (Statement stmt = conn.createStatement()) {
+            String sql = "SELECT COUNT(*) FROM Olympics;";
+            ResultSet rs;
+            rs = stmt.executeQuery(sql);
+            rs.absolute(1);
+            result[0] = rs.getInt(1) == 52;
+            sql = "SELECT COUNT(*) FROM Events";
+            rs = stmt.executeQuery(sql);
+            rs.absolute(1);
+            result[1] = rs.getInt(1) == 756;
+            sql = "SELECT COUNT(*) FROM Athletes";
+            rs = stmt.executeQuery(sql);
+            rs.absolute(1);
+            result[2] = rs.getInt(1) == 28544;
+            sql = "SELECT COUNT(*) FROM Medals";
+            rs = stmt.executeQuery(sql);
+            rs.absolute(1);
+            result[3] = rs.getInt(1) == 39783;
+            return result[0] == result[1] == result[2] == result[3] == true;
+        } catch (SQLException e) {
+            logger.severe("Unable to execute sql. Error: " + e.getMessage());
+            return false;
         }
     }
 }
