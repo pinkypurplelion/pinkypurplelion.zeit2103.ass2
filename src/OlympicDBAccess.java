@@ -12,9 +12,6 @@ import java.util.Scanner;
 import java.util.function.BiConsumer;
 import java.util.logging.Logger;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.fail;
-
 
 public class OlympicDBAccess {
     Connection conn;
@@ -68,8 +65,8 @@ public class OlympicDBAccess {
      * INDEX is used in SQL statements to enhance table query performance
      */
     public void createTables() {
-
-        String CREATE_OLYMPICS = "CREATE TABLE Olympics(" +
+        String[] sql = new String[4];
+        sql[0] = "CREATE TABLE IF NOT EXISTS Olympics(" +
                 "ID INT NOT NULL AUTO_INCREMENT," +
                 "year INT," +
                 "season VARCHAR(7)," +
@@ -77,14 +74,14 @@ public class OlympicDBAccess {
                 "PRIMARY KEY (ID)," +
                 "INDEX (year, season, city));";
 
-        String CREATE_EVENTS = "CREATE TABLE Events(" +
+        sql[1] = "CREATE TABLE IF NOT EXISTS Events(" +
                 "ID INT NOT NULL AUTO_INCREMENT," +
                 "sport VARCHAR(26)," +
                 "event VARCHAR(86)," +
                 "PRIMARY KEY (ID)," +
                 "INDEX (sport, event));";
 
-        String CREATE_ATHLETES = "CREATE TABLE Athletes(" +
+        sql[2] = "CREATE TABLE IF NOT EXISTS Athletes(" +
                 "ID INT NOT NULL AUTO_INCREMENT," +
                 "name VARCHAR(94)," +
                 "noc CHAR(3)," +
@@ -92,7 +89,7 @@ public class OlympicDBAccess {
                 "PRIMARY KEY (ID)," +
                 "INDEX (name, noc, gender));";
 
-        String CREATE_MEDALS = "CREATE TABLE Medals(" +
+        sql[3] = "CREATE TABLE IF NOT EXISTS Medals(" +
                 "ID INT NOT NULL AUTO_INCREMENT," +
                 "olympicID INT, FOREIGN KEY (olympicID) REFERENCES Olympics(ID)," +
                 "eventID INT, FOREIGN KEY (eventID) REFERENCES Events(ID)," +
@@ -101,14 +98,7 @@ public class OlympicDBAccess {
                 "PRIMARY KEY (ID));";
 
         try (Statement stmt = conn.createStatement()) {
-            ResultSet rs;
-            String[] tables = new String[]{"Olympics", "Events", "Athletes", "Medals"};
-            String[] sql = new String[]{CREATE_OLYMPICS, CREATE_EVENTS, CREATE_ATHLETES, CREATE_MEDALS};
-            for (int i = 0; i < tables.length; i++) {
-                rs = stmt.executeQuery("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'z5414201' AND table_name = '" + tables[i] + "' LIMIT 1;");
-                rs.absolute(1);
-                if (rs.getInt(1) != 1) stmt.executeUpdate(sql[i]);
-            }
+            for (String s : sql) stmt.executeUpdate(s);
             logger.info("All tables created!");
         } catch (SQLException e) {
             logger.severe("Unable to create all tables. Error: " + e.getMessage());
