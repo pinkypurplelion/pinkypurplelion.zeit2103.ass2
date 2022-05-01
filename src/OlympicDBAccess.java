@@ -12,6 +12,9 @@ import java.util.Scanner;
 import java.util.function.BiConsumer;
 import java.util.logging.Logger;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
+
 
 public class OlympicDBAccess {
     Connection conn;
@@ -65,6 +68,7 @@ public class OlympicDBAccess {
      * INDEX is used in SQL statements to enhance table query performance
      */
     public void createTables() {
+
         String CREATE_OLYMPICS = "CREATE TABLE Olympics(" +
                 "ID INT NOT NULL AUTO_INCREMENT," +
                 "year INT," +
@@ -317,19 +321,92 @@ public class OlympicDBAccess {
     }
 
     /**
-     * Used for code testing.
-     * @param sql SQL statement to execute
-     * @return ResultSet of executed query
+     * PSVM method to handle testing for the class.
+     * @param args NA.
      */
-    public ResultSet executeSQL(String sql) {
+    public static void main(String[] args) {
+        OlympicDBAccess db = new OlympicDBAccess();
+
+        // createTables test
+        db.dropTables();
+        logger.info("createTables: " + db.createTablesTest());
+
+        // dropTables test
+        db.dropTables();
+        logger.info("dropTables: " + db.dropTablesTest());
+
+        // populateTables test
+        db.dropTables();
+        logger.info("populateTables: " + db.populateTablesTest());
+    }
+
+    /**
+     * Method to test the createTables method.
+     * @return Returns true if method works, false if not.
+     */
+    public boolean createTablesTest() {
+        createTables();
+        String sql = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'z5414201' LIMIT 4;";
         ResultSet rs;
-        try {
-            Statement stmt = conn.createStatement();
+        try (Statement stmt = conn.createStatement()) {
             rs = stmt.executeQuery(sql);
-            return rs;
+            rs.absolute(1);
+            return rs.getInt(1) == 4;
         } catch (SQLException e) {
             logger.severe("Unable to execute sql. Error: " + e.getMessage());
-            return null;
+            return false;
+        }
+    }
+
+    /**
+     * Method to test the dropTables method.
+     * @return Returns true if method works, false if not.
+     */
+    public boolean dropTablesTest() {
+        createTables();
+        dropTables();
+        String sql = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'z5414201' LIMIT 4;";
+        ResultSet rs;
+        try (Statement stmt = conn.createStatement()) {
+            rs = stmt.executeQuery(sql);
+            rs.absolute(1);
+            return rs.getInt(1) == 0;
+        } catch (SQLException e) {
+            logger.severe("Unable to execute sql. Error: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * A method to test the populateTables and associated helper methods.
+     * @return Returns true if method works (for populating all tables), false if not.
+     */
+    public boolean populateTablesTest() {
+        createTables();
+        populateTables();
+        boolean[] result = new boolean[4];
+        try (Statement stmt = conn.createStatement()) {
+            String sql = "SELECT COUNT(*) FROM Olympics;";
+            ResultSet rs;
+            rs = stmt.executeQuery(sql);
+            rs.absolute(1);
+            result[0] = rs.getInt(1) == 52;
+            sql = "SELECT COUNT(*) FROM Events";
+            rs = stmt.executeQuery(sql);
+            rs.absolute(1);
+            result[1] = rs.getInt(1) == 756;
+            sql = "SELECT COUNT(*) FROM Athletes";
+            rs = stmt.executeQuery(sql);
+            rs.absolute(1);
+            result[2] = rs.getInt(1) == 28544;
+            sql = "SELECT COUNT(*) FROM Medals";
+            rs = stmt.executeQuery(sql);
+            rs.absolute(1);
+            result[3] = rs.getInt(1) == 39783;
+            return result[0] == result[1] == result[2] == result[3] == true;
+        } catch (SQLException e) {
+            logger.severe("Unable to execute sql. Error: " + e.getMessage());
+            return false;
         }
     }
 }
