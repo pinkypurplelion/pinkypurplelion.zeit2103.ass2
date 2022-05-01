@@ -291,7 +291,7 @@ public class OlympicDBAccess {
             }
             // note that Scanner suppresses exceptions
             if (sc.ioException() != null) {
-                throw sc.ioException();
+                logger.severe("IOException: Error reading file. Error: " + sc.ioException());
             }
         } catch (IOException e) {
             logger.severe("Error reading files. File path: " + path + "Error: " + e.getMessage());
